@@ -15,6 +15,8 @@ This project implements a full-stack quantum computing development environment t
 - **Advanced Language Features**: Support for loop expansion, conditional statement handling, and register-to-register operations
 - **Modern Web Interface**: Responsive design with dark/light theme support, collapsible navigation, and drag-and-drop file loading
 - **Persistent Storage**: Local file management system for saving and organizing quantum circuit definitions
+- **Standalone Executable**: PyInstaller support for creating portable, single-file executables with all dependencies bundled
+- **Offline Capable**: Local Tailwind CSS and all assets included - no external CDN dependencies required
 
 ## Architecture
 
@@ -23,13 +25,14 @@ This project implements a full-stack quantum computing development environment t
 - **Backend**: Python 3.10+, Flask (web framework)
 - **Quantum Framework**: Qiskit, Qiskit Aer (simulation)
 - **Parser**: OpenQASM 3 parser with AST generation
-- **Frontend**: HTML5, TailwindCSS, Vanilla JavaScript
+- **Frontend**: HTML5, TailwindCSS (local), Vanilla JavaScript
 - **Visualization**: Matplotlib (circuit diagrams), Canvas API (histograms)
+- **Distribution**: PyInstaller (standalone executable creation)
 
 ### Project Structure
 
 ```
-QASM_Compiler/
+Quantum_Programming_IDE/
 │
 ├── backend/
 │   ├── app.py                 # Flask application entry point
@@ -48,11 +51,14 @@ QASM_Compiler/
 │       ├── css/
 │       │   └── styles.css     # Custom styling and theme definitions
 │       ├── js/
-│       │   └── app.js         # Frontend application logic
+│       │   ├── app.js         # Frontend application logic
+│       │   └── tailwind.min.js # Local Tailwind CSS (offline support)
 │       └── Saved/              # User-saved quantum circuit files
 │
 ├── setup.bat                   # Windows setup script
 ├── start.bat                   # Windows start script
+├── compile.bat                 # PyInstaller build script for standalone executable
+├── QuantumIDE.spec             # PyInstaller specification file
 └── README.md                   # This file
 ```
 
@@ -79,7 +85,7 @@ QASM_Compiler/
    ```batch
    start.bat
    ```
-   The application will be available at `http://127.0.0.1:5000`
+   The application will be available at `http://127.0.0.1:5010`
 
 ### Manual Setup
 
@@ -110,12 +116,61 @@ QASM_Compiler/
    cd backend
    python app.py
    ```
+   The application will be available at `http://127.0.0.1:5010`
+
+### Building Standalone Executable
+
+The project includes PyInstaller support for creating a single-file, portable executable that includes all dependencies and can run without Python installation.
+
+#### Prerequisites for Building
+
+- Python 3.10 or higher
+- All project dependencies installed (run `setup.bat` first)
+- PyInstaller (automatically installed by `compile.bat`)
+
+#### Building the Executable
+
+1. **Using the automated script** (recommended):
+
+   ```batch
+   compile.bat
+   ```
+
+   This script will:
+
+   - Check for and install PyInstaller if needed
+   - Clean previous builds
+   - Build the executable using the optimized `QuantumIDE.spec` configuration
+   - Create `dist/QuantumIDE.exe`
+
+2. **Using PyInstaller directly**:
+   ```batch
+   pyinstaller QuantumIDE.spec
+   ```
+
+#### Executable Features
+
+- **Single File**: All dependencies bundled into one executable
+- **Portable**: Can be distributed without Python installation
+- **Offline Capable**: Includes local Tailwind CSS and all assets
+- **Smart Path Handling**: Automatically handles template/static file paths
+- **User Data**: Saved files are stored next to the executable (not in temp folders)
+
+#### Running the Executable
+
+Simply double-click `dist/QuantumIDE.exe` or run it from the command line:
+
+```batch
+dist\QuantumIDE.exe
+```
+
+The application will start and be available at `http://127.0.0.1:5010`. User-saved quantum circuit files will be stored in a `Saved` folder next to the executable.
 
 ## Usage
 
 ### Basic Workflow
 
-1. **Access the Interface**: Navigate to `http://127.0.0.1:5000` in your web browser
+1. **Access the Interface**: Navigate to `http://127.0.0.1:5010` in your web browser
 2. **Write OpenQASM 3 Code**: Enter your quantum circuit definition in the code editor
 3. **Configure Simulation**: Set the number of measurement shots (default: 1024)
 4. **Execute Simulation**: Click "Run Simulation" or press `Ctrl+Enter`
@@ -501,8 +556,12 @@ Contributors are encouraged to follow best practices for code quality, documenta
 
 ### Frontend Dependencies
 
-- **TailwindCSS**: Utility-first CSS framework for responsive design
+- **TailwindCSS**: Utility-first CSS framework for responsive design (included locally - no CDN required)
 - **Vanilla JavaScript**: No external JavaScript frameworks required
+
+### Build Dependencies
+
+- **PyInstaller**: For creating standalone executables (optional, for distribution)
 
 ## License
 
@@ -592,6 +651,10 @@ For questions, technical issues, collaboration inquiries, or research partnershi
 ## Version History
 
 - **v1.0.0** (2026-01-13): Initial release with core compilation, simulation, and visualization features
+  - PyInstaller support for standalone executable distribution
+  - Local Tailwind CSS for offline operation
+  - Enhanced path handling for compiled executables
+  - Improved file management with proper Saved directory handling
 
 ---
 
