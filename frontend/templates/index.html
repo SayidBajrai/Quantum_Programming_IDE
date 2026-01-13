@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QASM IDE</title>
+    <script src="{{ url_for('static', filename='js/tailwind.min.js') }}"></script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+</head>
+
+<body class="bg-[#0f0f0f] text-gray-100 min-h-screen" data-theme="dark">
+    <!-- Top Bar -->
+    <div id="topBar" class="bg-[#1a1a1a] border-b border-gray-800 px-2 py-2">
+        <div class="flex items-center justify-between">
+            <div class="flex items-center space-x-4">
+                <button id="sidebarToggleDesktop" class="hidden md:block p-0 hover:bg-gray-800 rounded-lg transition"
+                    title="Toggle sidebar">
+                    <svg id="sidebarToggleDesktopIcon" class="w-6 h-6" fill="none" stroke="currentColor"
+                        viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M11 19l-7-7 7-7m8 14l-7-7 7-7"></path>
+                    </svg>
+                </button>
+                <div id="logoIcon" class="text-2xl font-bold text-green-400">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="1"></circle>
+                        <path d="M20.2 20.2c2.04-2.03.02-7.36-4.5-11.9-4.54-4.52-9.87-6.54-11.9-4.5-2.04 2.03-.02 7.36 4.5 11.9 4.54 4.52 9.87 6.54 11.9 4.5Z"></path>
+                        <path d="M15.7 15.7c4.52-4.54 6.54-9.87 4.5-11.9-2.03-2.04-7.36-.02-11.9 4.5-4.52 4.54-6.54 9.87-4.5 11.9 2.03 2.04 7.36.02 11.9-4.5Z"></path>
+                    </svg>
+                </div>
+                <h1 class="text-xl font-semibold">Quantum Programming IDE</h1>
+            </div>
+            <div class="flex items-center space-x-4">
+                <button id="sidebarToggleMobile" class="md:hidden p-2 hover:bg-gray-800 rounded-lg transition">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M4 6h16M4 12h16M4 18h16"></path>
+                    </svg>
+                </button>
+                <button id="themeToggle"
+                    class="px-2 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg transition flex items-center space-x-2">
+                    <span id="themeIcon">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"></path>
+                        </svg>
+                    </span>
+                    <!-- <span id="themeText">Dark Mode</span> -->
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-[auto_1fr] h-[calc(100vh-53px)]">
+        <!-- Sidebar -->
+        <div id="sidebar"
+            class="w-64 bg-[#1a1a1a] border-r border-gray-800 p-4 transition-all duration-300 overflow-hidden">
+            <div class="flex items-center justify-between mb-4">
+                <h2 class="text-sm font-semibold text-gray-300">Menu</h2>
+            </div>
+
+            <nav class="space-y-2">
+                <button class="nav-item active w-full text-left px-4 py-2 rounded-lg bg-gray-800 text-green-400 flex items-left space-x-2">
+                    <svg id="compilerNavIcon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m18 16 4-4-4-4"></path><path d="m6 8-4 4 4 4"></path><path d="m14.5 4-5 16"></path></svg>
+                    <span>Compiler</span>
+                </button>
+                <!-- <button class="nav-item w-full text-left px-4 py-2 rounded-lg hover:bg-gray-800 transition">
+                    ⚡ Simulator
+                </button>
+                <button class="nav-item w-full text-left px-4 py-2 rounded-lg hover:bg-gray-800 transition">
+                    ⚙️ Settings
+                </button> -->
+            </nav>
+
+            <div class="mt-8">
+                <div class="flex items-center justify-between mb-2">
+                    <h3 class="text-sm font-semibold text-gray-400">Saved</h3>
+                    <button id="savedToggle" class="p-1 hover:bg-gray-800 rounded transition" title="Toggle Saved section">
+                        <svg id="savedToggleIcon" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                        </svg>
+                    </button>
+                </div>
+                <div id="savedExamples" class="space-y-2">
+                    <!-- Saved files will be loaded dynamically here -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Content -->
+        <div class="flex flex-col min-w-0 h-full">
+            <!-- Code Editor and Circuit Diagram Section -->
+            <div id="editorSection" class="grid grid-cols-2 gap-4 p-4" style="height: 60%; min-height: 300px;">
+                <!-- Code Editor Section -->
+                <div class="flex flex-col">
+                    <div class="mb-4 flex items-center justify-between">
+                        <h2 class="text-lg font-semibold">OpenQASM 3 Code</h2>
+                        <div class="flex items-center space-x-4">
+                            <label class="flex items-center space-x-2">
+                                <span class="text-sm text-gray-400">Shots:</span>
+                                <input type="number" id="shotsInput" value="1024" min="1" max="100000"
+                                    class="w-24 px-3 py-0 bg-gray-800 border border-gray-700 rounded text-sm">
+                            </label>
+                            <button id="saveBtn"
+                                class="px-3 py-0 bg-gray-800 hover:bg-gray-700 rounded-lg font-semibold transition text-gray-100">
+                                <svg id="saveBtnIcon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"></path><path d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7"></path><path d="M7 3v4a1 1 0 0 0 1 1h7"></path></svg>
+                            </button>
+                            <button id="runBtn"
+                                class="px-3 py-0 bg-gray-800 hover:bg-gray-700 rounded-lg font-semibold transition text-gray-100">
+                                <svg id="runBtnIcon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="6 3 20 12 6 21 6 3"></polygon></svg>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div
+                        class="flex-1 border border-gray-800 rounded-lg overflow-hidden bg-black theme-editor-container">
+                        <textarea id="codeEditor"
+                            class="w-full h-full p-4 bg-black text-green-400 font-mono text-sm focus:outline-none resize-none"
+                            spellcheck="false" placeholder="OPENQASM 3;">OPENQASM 3;
+                        </textarea>
+                    </div>
+                </div>
+
+                <!-- Circuit Diagram Section -->
+                <div class="flex flex-col">
+                    <div class="mb-4 flex items-center justify-between">
+                        <h2 class="text-lg font-semibold">Circuit Diagram</h2>
+                        <div id="circuitStatus" class="text-sm text-gray-400">
+                            Ready
+                        </div>
+                    </div>
+
+                    <div id="circuitDiagramContainer"
+                        class="flex-1 border border-gray-800 rounded-lg overflow-auto bg-black p-4">
+                        <div id="circuitDiagram" class="flex items-center justify-center min-h-full">
+                            <div class="text-center text-gray-500">
+                                <div id="circuitEmptyIcon" class="text-4xl mb-2 flex items-center justify-center">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <circle cx="12" cy="12" r="1"></circle>
+                                        <path d="M20.2 20.2c2.04-2.03.02-7.36-4.5-11.9-4.54-4.52-9.87-6.54-11.9-4.5-2.04 2.03-.02 7.36 4.5 11.9 4.54 4.52 9.87 6.54 11.9 4.5Z"></path>
+                                        <path d="M15.7 15.7c4.52-4.54 6.54-9.87 4.5-11.9-2.03-2.04-7.36-.02-11.9 4.5-4.52 4.54-6.54 9.87-4.5 11.9 2.03 2.04 7.36.02 11.9-4.5Z"></path>
+                                    </svg>
+                                </div>
+                                <div class="text-sm">Circuit diagram will appear here</div>
+                                <div class="text-xs mt-2 text-gray-600">Start typing to see real-time preview</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Resize Handle -->
+            <div id="resizeHandle"
+                class="h-2 bg-gray-800 hover:bg-gray-700 cursor-row-resize transition-colors flex items-center justify-center group">
+                <div class="w-24 h-1 bg-gray-600 group-hover:bg-gray-500 rounded-full transition-colors"></div>
+            </div>
+
+            <!-- Output Section style="height: 40%; min-height: 200px;"-->
+            <div id="outputSection" class="border-t border-gray-800 bg-[#1a1a1a] p-4 theme-output overflow-auto"
+                >
+                <div class="flex items-center justify-between mb-4">
+                    <h2 class="text-lg font-semibold">Simulation Results</h2>
+                    <div id="statusIndicator" class="text-sm text-gray-400">
+                        Ready
+                    </div>
+                </div>
+
+                <!-- Error Display -->
+                <div id="errorDisplay" class="hidden mb-4 p-4 bg-red-900/30 border border-red-700 rounded-lg">
+                    <div class="font-semibold text-red-400 mb-2">Error</div>
+                    <div id="errorMessage" class="text-sm text-red-300"></div>
+                </div>
+
+                <!-- Results Display -->
+                <div id="resultsDisplay" class="hidden">
+                    <div class="mb-4 text-sm text-gray-400">
+                        <span id="qubitsInfo"></span> |
+                        <span id="shotsInfo"></span>
+                    </div>
+
+                    <!-- Histogram -->
+                    <div class="mb-4">
+                        <canvas id="histogramCanvas" class="w-full h-48 bg-gray-900 rounded"></canvas>
+                    </div>
+
+                    <!-- Counts Table -->
+                    <div> <!-- class="max-h-32 overflow-y-auto" -->
+                        <table id="countsTable" class="w-full text-sm">
+                            <thead class="bg-gray-800 sticky top-0">
+                                <tr>
+                                    <th class="px-4 py-2 text-left">State</th>
+                                    <th class="px-4 py-2 text-left">Count</th>
+                                    <th class="px-4 py-2 text-left">Probability</th>
+                                </tr>
+                            </thead>
+                            <tbody id="countsTableBody" class="text-gray-300">
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Empty State -->
+                <div id="emptyState" class="text-center text-gray-500 py-12">
+                    <div id="emptyStateIcon" class="text-4xl mb-2 flex items-center justify-center">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <circle cx="12" cy="12" r="1"></circle>
+                            <path d="M20.2 20.2c2.04-2.03.02-7.36-4.5-11.9-4.54-4.52-9.87-6.54-11.9-4.5-2.04 2.03-.02 7.36 4.5 11.9 4.54 4.52 9.87 6.54 11.9 4.5Z"></path>
+                            <path d="M15.7 15.7c4.52-4.54 6.54-9.87 4.5-11.9-2.03-2.04-7.36-.02-11.9 4.5-4.52 4.54-6.54 9.87-4.5 11.9 2.03 2.04 7.36.02 11.9-4.5Z"></path>
+                        </svg>
+                    </div>
+                    <div>Run a simulation to see results here</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+</body>
+
+</html>

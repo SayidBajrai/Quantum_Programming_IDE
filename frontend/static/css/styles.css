@@ -1,0 +1,150 @@
+/* Custom styles for OpenQASM 3 Compiler & Simulator */
+
+/* Scrollbar styling for dark theme */
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: #1a1a1a;
+}
+
+::-webkit-scrollbar-thumb {
+    background: #374151;
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: #4b5563;
+}
+
+/* Code editor styling */
+#codeEditor {
+    font-family: 'Courier New', 'Monaco', 'Menlo', monospace;
+    line-height: 1.6;
+    tab-size: 4;
+    transition: border-color 0.2s;
+}
+
+#codeEditor::placeholder {
+    color: #4b5563;
+}
+
+#codeEditor.border-green-500 {
+    border-color: #10b981 !important;
+    box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.2);
+}
+
+/* Smooth transitions */
+* {
+    transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
+}
+
+/* Theme-aware styles */
+body.light-mode {
+    background-color: #f9fafb;
+    color: #111827;
+}
+
+body.dark-mode {
+    background-color: #0f0f0f;
+    color: #f3f4f6;
+}
+
+/* Focus styles */
+input:focus,
+textarea:focus,
+button:focus {
+    outline: 2px solid #10b981;
+    outline-offset: 2px;
+}
+
+/* Button hover effects */
+button:hover {
+    transform: translateY(-1px);
+}
+
+button:active {
+    transform: translateY(0);
+}
+
+/* Table row hover */
+#countsTableBody tr:hover {
+    background-color: rgba(16, 185, 129, 0.1);
+}
+
+/* Sidebar collapse animation */
+#sidebar.collapsed {
+    width: 0;
+    padding: 0;
+    border-right: none;
+}
+
+#sidebar.collapsed * {
+    opacity: 0;
+    pointer-events: none;
+}
+
+#sidebar {
+    transition: width 0.3s ease, padding 0.3s ease;
+}
+
+#sidebar * {
+    transition: opacity 0.2s ease;
+}
+
+/* Grid layout adjustments */
+@media (max-width: 768px) {
+    .grid {
+        grid-template-columns: 1fr;
+    }
+    
+    #sidebar {
+        position: fixed;
+        left: 0;
+        top: 73px;
+        height: calc(100vh - 73px);
+        z-index: 50;
+        transform: translateX(-100%);
+        transition: transform 0.3s ease;
+    }
+    
+    #sidebar.mobile-open {
+        transform: translateX(0);
+    }
+}
+
+/* Loading animation */
+@keyframes pulse {
+    0%, 100% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.5;
+    }
+}
+
+.loading {
+    animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/* Resize handle styling */
+#resizeHandle {
+    user-select: none;
+    -webkit-user-select: none;
+}
+
+#resizeHandle:active {
+    background-color: #374151;
+}
+
+/* Prevent text selection during resize */
+body.resizing {
+    user-select: none;
+    cursor: row-resize !important;
+}
+
+body.resizing * {
+    cursor: row-resize !important;
+}
