@@ -3,7 +3,8 @@
  */
 
 // DOM Elements
-const codeEditor = document.getElementById('codeEditor');
+const codeEditorContainer = document.getElementById('codeEditor');
+let monacoEditor = null; // Will be initialized with Monaco
 const runBtn = document.getElementById('runBtn');
 const saveBtn = document.getElementById('saveBtn');
 const shotsInput = document.getElementById('shotsInput');
@@ -23,8 +24,11 @@ const sidebar = document.getElementById('sidebar');
 const circuitDiagram = document.getElementById('circuitDiagram');
 const circuitStatus = document.getElementById('circuitStatus');
 const resizeHandle = document.getElementById('resizeHandle');
+const horizontalResizeHandle = document.getElementById('horizontalResizeHandle');
 const editorSection = document.getElementById('editorSection');
 const outputSection = document.getElementById('outputSection');
+const codeEditorSection = document.getElementById('codeEditorSection');
+const circuitDiagramSection = document.getElementById('circuitDiagramSection');
 const savedToggle = document.getElementById('savedToggle');
 const savedExamples = document.getElementById('savedExamples');
 
@@ -47,6 +51,200 @@ async function loadSavedExample(exampleName) {
     }
 }
 
+// Initialize Monaco Editor
+function initializeMonacoEditor() {
+    if (typeof require === 'undefined') {
+        console.error('Monaco Editor loader not found');
+        return;
+    }
+    
+    require.config({ paths: { vs: 'https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/vs' } });
+    
+    require(['vs/editor/editor.main'], function () {
+        // Register OpenQASM 3 language
+        monaco.languages.register({ id: 'openqasm3' });
+        
+        // Define OpenQASM 3 language tokens
+        monaco.languages.setMonarchTokensProvider('openqasm3', {
+            tokenizer: {
+                root: [
+                    // Comments must come first to override everything else
+                    [/\/\/.*$/, 'comment'],  // Single-line comments
+                    [/\/\*[\s\S]*?\*\//, 'comment'],  // Multi-line comments
+                    
+                    // Control flow keywords (purple)
+                    [/\b(if|else|for|while)\b/, 'controlflow'],
+                    [/else\s+if/, 'controlflow'],  // Handle "else if" as one token
+                    
+                    // Built-in gates (must come before function calls to avoid matching them as functions)
+                    // Match built-in gates as whole words (with or without following parenthesis)
+                    [/\b(h|x|y|z|s|t|cx|cy|cz|ch|swap|ccx|cswap|u|p|rx|ry|rz|r|crx|cry|crz|cu|cp|phase|cphase|id|tdg|sdg)\b/, 'type'],
+                    
+                    // Gate/function definitions: match keyword and function name separately
+                    [/\bgate\b/, 'keyword'],
+                    [/\bdef\b/, 'keyword'],
+                    [/\bcal\b/, 'keyword'],
+                    [/\bdefcal\b/, 'keyword'],
+                    
+                    // Function/gate calls: identifier followed by ( 
+                    // Built-in gates are already matched above, so remaining identifiers with ( are functions
+                    [/\b([a-zA-Z_][a-zA-Z0-9_]*)\s*\(/, 'function'],
+                    
+                    // Keywords (excluding control flow and gate/def which are handled above)
+                    [/OPENQASM\s+\d+/, 'keyword'],
+                    [/include|qubit|bit|measure|box|let|const|break|continue|return/, 'keyword'],
+                    
+                    // Operators
+                    [/[+\-*/=<>!&|]+/, 'operator'],
+                    [/[(),;\[\]{}]/, 'delimiter'],
+                    
+                    // Numbers
+                    [/\d+\.?\d*/, 'number'],
+                    [/pi/, 'constant'],
+                    
+                    // Strings
+                    [/["'][^"']*["']/, 'string'],
+                    
+                    // Identifiers
+                    [/[a-zA-Z_][a-zA-Z0-9_]*/, 'identifier'],
+                    
+                    // Whitespace
+                    [/\s+/, 'white']
+                ]
+            }
+        });
+        
+        // Define theme colors
+        const currentTheme = localStorage.getItem('theme') || 'dark';
+        const isDark = currentTheme === 'dark';
+        
+        monaco.editor.defineTheme('openqasm-theme', {
+            base: isDark ? 'vs-dark' : 'vs',
+            inherit: true,
+            rules: [
+                { token: 'keyword', foreground: '569CD6', fontStyle: 'bold' },
+                { token: 'controlflow', foreground: 'C586C0', fontStyle: 'bold' },  // Purple for if/else/for/while
+                { token: 'function', foreground: 'DCDCAA' },  // Yellow for function/gate names
+                { token: 'type', foreground: '4EC9B0' },
+                { token: 'string', foreground: 'CE9178' },
+                { token: 'number', foreground: 'B5CEA8' },
+                { token: 'comment', foreground: '6A9955', fontStyle: 'italic' },
+                { token: 'operator', foreground: 'D4D4D4' },
+                { token: 'delimiter', foreground: 'D4D4D4' },
+                { token: 'identifier', foreground: isDark ? 'D4D4D4' : '000000' },
+                { token: 'constant', foreground: '569CD6' }
+            ],
+            colors: {
+                'editor.background': isDark ? '#000000' : '#FFFFFF',
+                'editor.foreground': isDark ? '#10b981' : '#059669',
+                'editorLineNumber.foreground': isDark ? '#6A9955' : '#858585',
+                'editor.selectionBackground': isDark ? '#264f78' : '#add6ff',
+                'editor.lineHighlightBackground': isDark ? '#1e1e1e' : '#f0f0f0'
+            }
+        });
+        
+        // Create editor instance
+        monacoEditor = monaco.editor.create(codeEditorContainer, {
+            value: 'OPENQASM 3;\n',
+            language: 'openqasm3',
+            theme: 'openqasm-theme',
+            fontSize: 14,
+            fontFamily: 'Consolas, "Courier New", monospace',
+            minimap: { enabled: false },
+            scrollBeyondLastLine: false,
+            automaticLayout: true,
+            wordWrap: 'on',
+            lineNumbers: 'on',
+            renderWhitespace: 'selection',
+            tabSize: 4,
+            insertSpaces: true,
+            formatOnPaste: false,
+            formatOnType: false
+        });
+        
+        // Set up real-time error detection
+        setupMonacoErrorDetection();
+        
+        // Set up change listener for circuit diagram updates
+        monacoEditor.onDidChangeModelContent(() => {
+            clearTimeout(window.circuitUpdateTimeout);
+            window.circuitUpdateTimeout = setTimeout(() => {
+                updateCircuitDiagram();
+            }, 500);
+        });
+        
+        // Keyboard shortcut: Ctrl+Enter to run
+        monacoEditor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.Enter, () => {
+            runSimulation();
+        });
+        
+        // Initialize circuit diagram
+        if (circuitDiagram) {
+            setTimeout(() => updateCircuitDiagram(), 100);
+        }
+    });
+}
+
+// Set up real-time error detection for Monaco
+function setupMonacoErrorDetection() {
+    if (!monacoEditor) return;
+    
+    // Debounced error checking
+    let errorCheckTimeout;
+    monacoEditor.onDidChangeModelContent(() => {
+        clearTimeout(errorCheckTimeout);
+        errorCheckTimeout = setTimeout(() => {
+            checkSyntaxErrors();
+        }, 1000); // Check after 1 second of no typing
+    });
+}
+
+// Check for syntax errors
+async function checkSyntaxErrors() {
+    if (!monacoEditor) return;
+    
+    const code = monacoEditor.getValue();
+    if (!code.trim()) {
+        monaco.editor.setModelMarkers(monacoEditor.getModel(), 'openqasm3', []);
+        return;
+    }
+    
+    try {
+        // Try to parse the circuit to check for errors
+        const response = await fetch('/circuit-diagram', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ code: code })
+        });
+        
+        const data = await response.json();
+        
+        if (!data.success && data.error) {
+            // Parse error message to get line number if possible
+            const errorMatch = data.error.match(/line\s+(\d+)/i);
+            const lineNumber = errorMatch ? parseInt(errorMatch[1]) - 1 : 0;
+            
+            const markers = [{
+                severity: monaco.MarkerSeverity.Error,
+                startLineNumber: lineNumber || 1,
+                startColumn: 1,
+                endLineNumber: lineNumber || 1,
+                endColumn: 1000,
+                message: data.error
+            }];
+            
+            monaco.editor.setModelMarkers(monacoEditor.getModel(), 'openqasm3', markers);
+        } else {
+            // Clear errors if valid
+            monaco.editor.setModelMarkers(monacoEditor.getModel(), 'openqasm3', []);
+        }
+    } catch (error) {
+        console.error('Error checking syntax:', error);
+    }
+}
+
 // Initialize
 document.addEventListener('DOMContentLoaded', () => {
     initializeThemeIcon();
@@ -54,11 +252,20 @@ document.addEventListener('DOMContentLoaded', () => {
     loadSidebarState();
     loadResizeState();
     loadSavedState();
+    initializeMonacoEditor(); // Initialize Monaco first
     setupEventListeners();
-    // Initial circuit diagram update
-    if (circuitDiagram) {
-        setTimeout(() => updateCircuitDiagram(), 100);
-    }
+    
+    // Handle window resize
+    let resizeTimeout;
+    window.addEventListener('resize', () => {
+        clearTimeout(resizeTimeout);
+        resizeTimeout = setTimeout(() => {
+            updateResizeOnWindowResize();
+            if (monacoEditor) {
+                monacoEditor.layout();
+            }
+        }, 100); // Debounce resize events
+    });
 });
 
 function loadResizeState() {
@@ -70,6 +277,106 @@ function loadResizeState() {
             editorSection.style.height = savedEditorHeight;
             outputSection.style.height = savedOutputHeight;
         }
+    }
+    
+    // Load horizontal resize state
+    if (codeEditorSection && circuitDiagramSection) {
+        const savedCodeEditorWidth = localStorage.getItem('codeEditorWidth');
+        const savedCircuitDiagramWidth = localStorage.getItem('circuitDiagramWidth');
+        
+        if (savedCodeEditorWidth && savedCircuitDiagramWidth) {
+            codeEditorSection.style.width = savedCodeEditorWidth;
+            circuitDiagramSection.style.width = savedCircuitDiagramWidth;
+        }
+    }
+}
+
+function updateResizeOnWindowResize() {
+    // Update vertical resize (editor vs output sections)
+    if (editorSection && outputSection) {
+        const savedEditorHeight = localStorage.getItem('editorHeight');
+        const savedOutputHeight = localStorage.getItem('outputHeight');
+        
+        // If we have saved percentage values, maintain them
+        if (savedEditorHeight && savedEditorHeight.includes('%')) {
+            editorSection.style.height = savedEditorHeight;
+            outputSection.style.height = savedOutputHeight;
+        } else if (savedEditorHeight && savedEditorHeight.includes('px')) {
+            // Convert pixel values to percentages based on current container size
+            const container = editorSection.parentElement;
+            if (container) {
+                const containerHeight = container.offsetHeight;
+                const editorHeightPx = parseFloat(savedEditorHeight);
+                const outputHeightPx = parseFloat(savedOutputHeight);
+                
+                if (containerHeight > 0) {
+                    const editorPercent = (editorHeightPx / containerHeight) * 100;
+                    const outputPercent = (outputHeightPx / containerHeight) * 100;
+                    
+                    editorSection.style.height = `${editorPercent}%`;
+                    outputSection.style.height = `${outputPercent}%`;
+                }
+            }
+        }
+    }
+    
+    // Update horizontal resize (code editor vs circuit diagram)
+    if (codeEditorSection && circuitDiagramSection) {
+        const savedCodeEditorWidth = localStorage.getItem('codeEditorWidth');
+        const savedCircuitDiagramWidth = localStorage.getItem('circuitDiagramWidth');
+        
+        // If we have saved values, apply them (they should be percentages now)
+        if (savedCodeEditorWidth && savedCircuitDiagramWidth) {
+            // Handle both percentage and pixel values for backward compatibility
+            if (savedCodeEditorWidth.includes('%')) {
+                // Percentages - apply directly
+                codeEditorSection.style.width = savedCodeEditorWidth;
+                circuitDiagramSection.style.width = savedCircuitDiagramWidth;
+            } else if (savedCodeEditorWidth.includes('px')) {
+                // Legacy pixel values - convert to percentages
+                const container = editorSection;
+                if (container) {
+                    const containerWidth = container.offsetWidth;
+                    const resizeHandleWidth = horizontalResizeHandle ? horizontalResizeHandle.offsetWidth : 8;
+                    const availableWidth = containerWidth - resizeHandleWidth;
+                    
+                    const codeEditorWidthPx = parseFloat(savedCodeEditorWidth);
+                    const circuitDiagramWidthPx = parseFloat(savedCircuitDiagramWidth);
+                    const totalSavedWidth = codeEditorWidthPx + circuitDiagramWidthPx;
+                    
+                    if (totalSavedWidth > 0 && availableWidth > 0) {
+                        // Convert to percentages
+                        const codeEditorPercent = (codeEditorWidthPx / availableWidth) * 100;
+                        const circuitDiagramPercent = (circuitDiagramWidthPx / availableWidth) * 100;
+                        
+                        codeEditorSection.style.width = `${codeEditorPercent}%`;
+                        circuitDiagramSection.style.width = `${circuitDiagramPercent}%`;
+                        
+                        // Update localStorage with percentages for future use
+                        localStorage.setItem('codeEditorWidth', codeEditorSection.style.width);
+                        localStorage.setItem('circuitDiagramWidth', circuitDiagramSection.style.width);
+                    }
+                }
+            }
+        }
+    }
+    
+    // Redraw histogram if visible (canvas might need resizing)
+    if (histogramCanvas && resultsDisplay && !resultsDisplay.classList.contains('hidden')) {
+        setTimeout(() => {
+            const tableRows = document.querySelectorAll('#countsTableBody tr');
+            const counts = {};
+            tableRows.forEach(row => {
+                const state = row.querySelector('td:first-child')?.textContent;
+                const count = parseInt(row.querySelector('td:nth-child(2)')?.textContent);
+                if (state && count) {
+                    counts[state] = count;
+                }
+            });
+            if (Object.keys(counts).length > 0) {
+                drawHistogram(counts);
+            }
+        }, 10);
     }
 }
 
@@ -184,8 +491,8 @@ async function loadSavedFiles() {
                 // Main button click handler (loads file)
                 button.addEventListener('click', async () => {
                     const code = await loadSavedExample(file.filename);
-                    if (code) {
-                        codeEditor.value = code;
+                    if (code && monacoEditor) {
+                        monacoEditor.setValue(code);
                         updateCircuitDiagram();
                     }
                 });
@@ -368,7 +675,9 @@ function setupEventListeners() {
             if (file.name.endsWith('.qasm') || file.name.endsWith('.qasm3')) {
                 const reader = new FileReader();
                 reader.onload = (event) => {
-                    codeEditor.value = event.target.result;
+                    if (monacoEditor) {
+                        monacoEditor.setValue(event.target.result);
+                    }
                     updateCircuitDiagram();
                 };
                 reader.readAsText(file);
@@ -378,7 +687,7 @@ function setupEventListeners() {
         }
     });
     
-    // Resize handle functionality
+    // Vertical resize handle functionality (between editor and output sections)
     if (resizeHandle && editorSection && outputSection) {
         let isResizing = false;
         let startY = 0;
@@ -399,13 +708,14 @@ function setupEventListeners() {
         document.addEventListener('mousemove', (e) => {
             if (!isResizing) return;
             
-            const deltaY = e.clientY - startY;
+            // const deltaY = e.clientY - startY;
             const container = editorSection.parentElement;
+            const containerY = container.offsetTop;
             const containerHeight = container.offsetHeight;
             const resizeHandleHeight = resizeHandle.offsetHeight;
             
-            const newEditorHeight = startEditorHeight + deltaY;
-            const newOutputHeight = startOutputHeight - deltaY;
+            const newEditorHeight = e.clientY - containerY;
+            const newOutputHeight = containerHeight - newEditorHeight;
             
             // Minimum heights
             const minEditorHeight = 50;
@@ -425,7 +735,7 @@ function setupEventListeners() {
                         const counts = {};
                         tableRows.forEach(row => {
                             const state = row.querySelector('td:first-child')?.textContent;
-                            const count = parseInt(row.querySelector('td:nth-child(2)')?.textContent);
+                            const count = parseInt(row.querySelector('td:nth-child(3)')?.textContent);
                             if (state && count) {
                                 counts[state] = count;
                             }
@@ -438,7 +748,7 @@ function setupEventListeners() {
             }
         });
         
-        document.addEventListener('mouseup', () => {
+        const handleMouseUp = () => {
             if (isResizing) {
                 isResizing = false;
                 document.body.classList.remove('resizing');
@@ -449,7 +759,69 @@ function setupEventListeners() {
                 localStorage.setItem('editorHeight', editorSection.style.height);
                 localStorage.setItem('outputHeight', outputSection.style.height);
             }
+        };
+        
+        document.addEventListener('mouseup', handleMouseUp);
+    }
+    
+    // Horizontal resize handle functionality (between code editor and circuit diagram)
+    if (horizontalResizeHandle && codeEditorSection && circuitDiagramSection) {
+        let isResizingHorizontal = false;
+        let startX = 0;
+        let startCodeEditorWidth = 0;
+        let startCircuitDiagramWidth = 0;
+        
+        horizontalResizeHandle.addEventListener('mousedown', (e) => {
+            isResizingHorizontal = true;
+            startX = e.clientX;
+            startCodeEditorWidth = codeEditorSection.offsetWidth;
+            startCircuitDiagramWidth = circuitDiagramSection.offsetWidth;
+            document.body.classList.add('resizing');
+            document.body.style.cursor = 'col-resize';
+            document.body.style.userSelect = 'none';
+            e.preventDefault();
         });
+        
+        document.addEventListener('mousemove', (e) => {
+            if (!isResizingHorizontal) return;
+            
+            //const deltaX = e.clientX - startX;
+            const container = editorSection;
+            const containerX = container.offsetLeft;
+            const containerWidth = container.offsetWidth;
+            const resizeHandleWidth = horizontalResizeHandle.offsetWidth;
+            const availableWidth = containerWidth - resizeHandleWidth;
+            
+            const newCodeEditorWidth = e.clientX - containerX;
+            const newCircuitDiagramWidth = containerWidth - newCodeEditorWidth;
+            
+            // Minimum widths
+            const minWidth = 200;
+            
+            if (newCodeEditorWidth >= minWidth && newCircuitDiagramWidth >= minWidth && availableWidth > 0) {
+                // Save as percentages for better scaling on window resize
+                const codeEditorPercent = (newCodeEditorWidth / availableWidth) * 100;
+                const circuitDiagramPercent = (newCircuitDiagramWidth / availableWidth) * 100;
+                
+                codeEditorSection.style.width = `${codeEditorPercent}%`;
+                circuitDiagramSection.style.width = `${circuitDiagramPercent}%`;
+            }
+        });
+        
+        const handleMouseUpHorizontal = () => {
+            if (isResizingHorizontal) {
+                isResizingHorizontal = false;
+                document.body.classList.remove('resizing');
+                document.body.style.cursor = '';
+                document.body.style.userSelect = '';
+                
+                // Save widths to localStorage (as percentages)
+                localStorage.setItem('codeEditorWidth', codeEditorSection.style.width);
+                localStorage.setItem('circuitDiagramWidth', circuitDiagramSection.style.width);
+            }
+        };
+        
+        document.addEventListener('mouseup', handleMouseUpHorizontal);
     }
 }
 
@@ -508,7 +880,7 @@ function loadSidebarState() {
 }
 
 async function saveFile() {
-    const code = codeEditor.value.trim();
+    const code = monacoEditor ? monacoEditor.getValue().trim() : '';
     
     if (!code) {
         alert('Please enter some OpenQASM 3 code to save');
@@ -592,7 +964,7 @@ async function saveFile() {
 }
 
 async function runSimulation() {
-    const code = codeEditor.value.trim();
+    const code = monacoEditor ? monacoEditor.getValue().trim() : '';
     const shots = parseInt(shotsInput.value) || 1024;
     
     if (!code) {
@@ -738,11 +1110,14 @@ function populateCountsTable(counts, shots) {
     states.forEach(state => {
         const count = counts[state];
         const probability = ((count / shots) * 100).toFixed(2);
+        // Format Dirac notation: |state⟩
+        const diracNotation = `|${state}⟩`;
         
         const row = document.createElement('tr');
         row.className = 'border-t border-gray-700';
         row.innerHTML = `
             <td class="px-4 py-2 font-mono">${state}</td>
+            <td class="px-4 py-2 font-mono">${diracNotation}</td>
             <td class="px-4 py-2">${count}</td>
             <td class="px-4 py-2">${probability}%</td>
         `;
@@ -774,13 +1149,13 @@ function hideResults() {
 async function updateCircuitDiagram() {
     if (!circuitDiagram || !circuitStatus) return;
     
-    const code = codeEditor.value.trim();
+    const code = monacoEditor ? monacoEditor.getValue().trim() : '';
     
     // Get current theme for text colors
     const currentTheme = localStorage.getItem('theme') || 'dark';
     const isDark = currentTheme === 'dark';
     const textColor = isDark ? 'text-gray-500' : 'text-gray-600';
-    const codeTextColor = isDark ? 'text-green-400' : 'text-green-700';
+    const codeTextColor = isDark ? 'text-white' : 'text-black';
     
     if (!code) {
         circuitDiagram.innerHTML = `
@@ -815,23 +1190,23 @@ async function updateCircuitDiagram() {
                 circuitDiagram.innerHTML = data.svg;
                 circuitStatus.textContent = 'Valid';
                 
-                // Style the SVG for theme
+                // Style the SVG for theme and apply syntax-based colors
                 const svg = circuitDiagram.querySelector('svg');
                 if (svg) {
                     svg.style.maxWidth = '100%';
                     svg.style.height = 'auto';
-                    // Make text readable based on theme
-                    const textElements = svg.querySelectorAll('text');
-                    textElements.forEach(text => {
-                        if (text.getAttribute('fill') !== 'none') {
-                            text.setAttribute('fill', isDark ? '#10b981' : '#059669');
-                        }
-                    });
+                    
+                    // Parse code to identify gate types
+                    const gateColors = parseGateColors(code, isDark);
+                    
+                    // Apply colors to gate elements based on syntax highlighting
+                    applyGateColors(svg, gateColors);
                 }
             } else if (data.text) {
-                // Display text diagram as fallback (use theme-aware text color)
+                // Display text diagram with multi-color syntax highlighting
+                const coloredText = colorizeCircuitText(data.text, code, isDark);
                 circuitDiagram.innerHTML = `
-                    <pre class="${codeTextColor} font-mono text-xs whitespace-pre overflow-x">${escapeHtml(data.text)}</pre>
+                    <pre class="font-mono text-xs whitespace-pre overflow-x">${coloredText}</pre>
                 `;
                 circuitStatus.textContent = 'Valid (text)';
             }
@@ -862,6 +1237,270 @@ function escapeHtml(text) {
     return div.innerHTML;
 }
 
+// Parse code to identify gate types and their colors
+function parseGateColors(code, isDark) {
+    const gateColors = {};
+    
+    // Keywords (blue) - measure
+    const keywords = ['measure'];
+    const keywordColor = '#569CD6'; // Blue
+    
+    // Built-in gates (cyan)
+    const builtInGates = ['h', 'x', 'y', 'z', 's', 't', 'cx', 'cy', 'cz', 'ch', 'swap', 
+                         'ccx', 'cswap', 'u', 'p', 'rx', 'ry', 'rz', 'r', 'crx', 'cry', 
+                         'crz', 'cu', 'cp', 'phase', 'cphase', 'id', 'tdg', 'sdg'];
+    const builtInColor = '#4EC9B0'; // Cyan
+    
+    // Parse code line by line
+    const lines = code.split('\n');
+    lines.forEach(line => {
+        // Remove comments
+        const cleanLine = line.split('//')[0].split('/*')[0];
+        
+        // Check for measure (keyword)
+        if (cleanLine.includes('measure')) {
+            gateColors['M'] = keywordColor; // M is the symbol for measure
+        }
+        
+        // Check for built-in gates
+        builtInGates.forEach(gate => {
+            // Match gate name as whole word followed by space or (
+            const gateRegex = new RegExp(`\\b${gate}\\b\\s*[\\[(]`, 'i');
+            if (gateRegex.test(cleanLine)) {
+                // Map gate names to their circuit diagram symbols
+                const symbolMap = {
+                    'h': 'H', 'x': 'X', 'y': 'Y', 'z': 'Z', 's': 'S', 't': 'T',
+                    'cx': 'X', 'cy': 'Y', 'cz': 'Z', 'ch': 'H',
+                    'swap': 'SWAP', 'ccx': 'X', 'cswap': 'SWAP',
+                    'u': 'U', 'p': 'P', 'rx': 'RX', 'ry': 'RY', 'rz': 'RZ', 'r': 'R',
+                    'crx': 'RX', 'cry': 'RY', 'crz': 'RZ',
+                    'cu': 'U', 'cp': 'P', 'phase': 'PHASE', 'cphase': 'PHASE',
+                    'id': 'I', 'tdg': 'TDG', 'sdg': 'SDG'
+                };
+                
+                const symbol = symbolMap[gate.toLowerCase()] || gate.toUpperCase();
+                gateColors[symbol] = builtInColor;
+            }
+        });
+    });
+    
+    return gateColors;
+}
+
+// Colorize text circuit diagram with syntax-based colors
+function colorizeCircuitText(text, code, isDark) {
+    const gateColors = parseGateColors(code, isDark);
+    const keywordColor = '#569CD6'; // Blue for measure
+    const builtInColor = '#4EC9B0'; // Cyan for built-in gates
+    const functionColor = '#DCDCAA'; // Yellow for custom functions
+    const controlFlowColor = '#C586C0'; // Purple for control flow
+    
+    // Escape HTML first
+    let coloredText = escapeHtml(text);
+    
+    // Extract function names from code
+    const functionNames = extractFunctionNames(code);
+    
+    // Build a map of positions to colors to avoid overlapping replacements
+    const colorMap = [];
+    
+    // Helper function to add color range
+    function addColorRange(start, end, color) {
+        colorMap.push({ start, end, color });
+    }
+    
+    // Process line by line to avoid breaking the structure
+    const lines = coloredText.split('\n');
+    const processedLines = lines.map(line => {
+        const lineColorMap = [];
+        
+        // Color custom function/gate names
+        functionNames.forEach(funcName => {
+            const regex = new RegExp(`\\b(${funcName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})\\b`, 'g');
+            let match;
+            while ((match = regex.exec(line)) !== null) {
+                lineColorMap.push({
+                    start: match.index,
+                    end: match.index + match[0].length,
+                    color: functionColor
+                });
+            }
+        });
+        
+        // Color control flow keywords (While, If, End)
+        const controlFlowKeywords = ['While', 'If', 'End'];
+        controlFlowKeywords.forEach(keyword => {
+            const regex = new RegExp(`(${keyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}[\\d-]*)`, 'g');
+            let match;
+            while ((match = regex.exec(line)) !== null) {
+                // Check for overlap
+                const overlaps = lineColorMap.some(item => 
+                    match.index < item.end && match.index + match[0].length > item.start
+                );
+                if (!overlaps) {
+                    lineColorMap.push({
+                        start: match.index,
+                        end: match.index + match[0].length,
+                        color: controlFlowColor
+                    });
+                }
+            }
+        });
+        
+        // Color built-in gate symbols
+        const builtInSymbols = ['H', 'X', 'Y', 'Z', 'S', 'T', 'RX', 'RY', 'RZ', 'R', 'U', 'P', 'PHASE', 'I', 'TDG', 'SDG', 'SWAP'];
+        builtInSymbols.forEach(symbol => {
+            if (gateColors[symbol]) {
+                const regex = new RegExp(`\\b(${symbol.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})\\b`, 'g');
+                let match;
+                while ((match = regex.exec(line)) !== null) {
+                    // Check for overlap
+                    const overlaps = lineColorMap.some(item => 
+                        match.index < item.end && match.index + match[0].length > item.start
+                    );
+                    if (!overlaps) {
+                        lineColorMap.push({
+                            start: match.index,
+                            end: match.index + match[0].length,
+                            color: gateColors[symbol]
+                        });
+                    }
+                }
+            }
+        });
+        
+        // Color measure gates (M symbol and related box characters) - do this last
+        if (gateColors['M']) {
+            const measureChars = ['┤M├', '└╥┘', '┌─┐', '║', '╫', '╩', '╬', '╨', '╡', '╞'];
+            measureChars.forEach(char => {
+                const escapedChar = char.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                const regex = new RegExp(escapedChar, 'g');
+                let match;
+                while ((match = regex.exec(line)) !== null) {
+                    // Check for overlap
+                    const overlaps = lineColorMap.some(item => 
+                        match.index < item.end && match.index + match[0].length > item.start
+                    );
+                    if (!overlaps) {
+                        lineColorMap.push({
+                            start: match.index,
+                            end: match.index + match[0].length,
+                            color: gateColors['M']
+                        });
+                    }
+                }
+            });
+        }
+        
+        // Sort by start position
+        lineColorMap.sort((a, b) => a.start - b.start);
+        
+        // Apply colors from end to start to maintain correct indices
+        lineColorMap.sort((a, b) => b.start - a.start);
+        let result = line;
+        for (const item of lineColorMap) {
+            const before = result.substring(0, item.start);
+            const text = result.substring(item.start, item.end);
+            const after = result.substring(item.end);
+            result = before + `<span style="color: ${item.color}">${text}</span>` + after;
+        }
+        
+        return result;
+    });
+    
+    return processedLines.join('\n');
+}
+
+// Extract function/gate names from code
+function extractFunctionNames(code) {
+    const functionNames = [];
+    const lines = code.split('\n');
+    
+    lines.forEach(line => {
+        // Remove comments
+        const cleanLine = line.split('//')[0].split('/*')[0];
+        
+        // Match gate definitions: gate my_gate(...)
+        const gateDefMatch = cleanLine.match(/\bgate\s+([a-zA-Z_][a-zA-Z0-9_]*)\s*\(/);
+        if (gateDefMatch) {
+            functionNames.push(gateDefMatch[1]);
+        }
+        
+        // Match def definitions: def my_func(...)
+        const defMatch = cleanLine.match(/\bdef\s+([a-zA-Z_][a-zA-Z0-9_]*)\s*\(/);
+        if (defMatch) {
+            functionNames.push(defMatch[1]);
+        }
+        
+        // Match function calls that aren't built-in gates
+        const functionCallMatch = cleanLine.match(/\b([a-zA-Z_][a-zA-Z0-9_]*)\s*\(/);
+        if (functionCallMatch) {
+            const funcName = functionCallMatch[1];
+            const builtInGates = ['h', 'x', 'y', 'z', 's', 't', 'cx', 'cy', 'cz', 'ch', 'swap', 
+                                 'ccx', 'cswap', 'u', 'p', 'rx', 'ry', 'rz', 'r', 'crx', 'cry', 
+                                 'crz', 'cu', 'cp', 'phase', 'cphase', 'id', 'tdg', 'sdg'];
+            if (!builtInGates.includes(funcName.toLowerCase()) && 
+                !['gate', 'def', 'cal', 'defcal', 'if', 'else', 'for', 'while', 'include', 
+                  'qubit', 'bit', 'measure', 'box', 'let', 'const', 'break', 'continue', 'return'].includes(funcName.toLowerCase())) {
+                if (!functionNames.includes(funcName)) {
+                    functionNames.push(funcName);
+                }
+            }
+        }
+    });
+    
+    return functionNames;
+}
+
+// Apply colors to gate elements in SVG
+function applyGateColors(svg, gateColors) {
+    const currentTheme = localStorage.getItem('theme') || 'dark';
+    const isDark = currentTheme === 'dark';
+    const defaultTextColor = isDark ? '#10b981' : '#059669';
+    
+    // Find all gate groups and color them based on their text labels
+    const gateGroups = svg.querySelectorAll('g');
+    gateGroups.forEach(group => {
+        const textInGroup = group.querySelector('text');
+        if (textInGroup) {
+            const gateName = textInGroup.textContent.trim();
+            const gateColor = gateColors[gateName];
+            
+            if (gateColor) {
+                // Color all shapes in this group
+                const shapesInGroup = group.querySelectorAll('rect, path, polygon, circle, line');
+                shapesInGroup.forEach(shape => {
+                    const fill = shape.getAttribute('fill');
+                    const stroke = shape.getAttribute('stroke');
+                    
+                    // Only update if not a gradient or pattern
+                    if (fill && fill !== 'none' && fill !== 'transparent' && !fill.startsWith('url')) {
+                        shape.setAttribute('fill', gateColor);
+                    }
+                    if (stroke && stroke !== 'none' && !stroke.startsWith('url')) {
+                        shape.setAttribute('stroke', gateColor);
+                    }
+                });
+                
+                // Color the text label
+                textInGroup.setAttribute('fill', gateColor);
+            } else if (textInGroup.getAttribute('fill') !== 'none' && textInGroup.getAttribute('fill') !== 'transparent') {
+                // Default color for other text
+                textInGroup.setAttribute('fill', defaultTextColor);
+            }
+        }
+    });
+    
+    // Also handle standalone text elements (for measure gates)
+    const textElements = svg.querySelectorAll('text');
+    textElements.forEach(text => {
+        const textContent = text.textContent.trim();
+        if (gateColors[textContent] && text.getAttribute('fill') !== 'none') {
+            text.setAttribute('fill', gateColors[textContent]);
+        }
+    });
+}
+
 // Theme management
 const themeConfig = {
     dark: {
@@ -869,7 +1508,7 @@ const themeConfig = {
         topBar: { bg: 'bg-[#1a1a1a]', border: 'border-gray-800' },
         sidebar: { bg: 'bg-[#1a1a1a]', border: 'border-gray-800', text: 'text-gray-300' },
         mainContent: { bg: 'bg-transparent' },
-        codeEditor: { bg: 'bg-black', text: 'text-green-400', border: 'border-gray-800' },
+        codeEditor: { bg: 'bg-black', text: 'text-white', border: 'border-gray-800' },
         outputPanel: { bg: 'bg-[#1a1a1a]', border: 'border-gray-800' },
         button: { primary: 'bg-green-600 hover:bg-green-700', secondary: 'bg-gray-700 hover:bg-gray-600' },
         input: { bg: 'bg-gray-800', border: 'border-gray-700', text: 'text-gray-100' },
@@ -882,7 +1521,7 @@ const themeConfig = {
         topBar: { bg: 'bg-white', border: 'border-gray-300' },
         sidebar: { bg: 'bg-gray-100', border: 'border-gray-300', text: 'text-gray-700' },
         mainContent: { bg: 'bg-transparent' },
-        codeEditor: { bg: 'bg-white', text: 'text-green-700', border: 'border-gray-300' },
+        codeEditor: { bg: 'bg-white', text: 'text-black', border: 'border-gray-300' },
         outputPanel: { bg: 'bg-gray-50', border: 'border-gray-300' },
         button: { primary: 'bg-green-500 hover:bg-green-600', secondary: 'bg-gray-200 hover:bg-gray-300' },
         input: { bg: 'bg-white', border: 'border-gray-300', text: 'text-gray-900' },
@@ -936,7 +1575,7 @@ function applyTheme(theme) {
             if (btn.classList.contains('active')) {
                 // Active nav button
                 btn.className = btn.className.replace(/bg-gray-800|bg-gray-200/g, isDark ? 'bg-gray-800' : 'bg-gray-200');
-                btn.className = btn.className.replace(/text-green-400/g, 'text-green-400'); // Keep green for active
+                btn.className = btn.className.replace(/text-gray-900/g, 'text-gray-100'); // Keep green for active
             } else {
                 // Regular nav buttons
                 btn.className = btn.className.replace(/hover:bg-gray-800|hover:bg-gray-200/g, isDark ? 'hover:bg-gray-800' : 'hover:bg-gray-200');
@@ -978,16 +1617,69 @@ function applyTheme(theme) {
     }
     
     // Update code editor container
-    const editorContainer = codeEditor?.parentElement;
+    const editorContainer = codeEditorContainer?.parentElement;
     if (editorContainer) {
         editorContainer.className = editorContainer.className.replace(/bg-black|bg-white/g, config.codeEditor.bg);
         editorContainer.className = editorContainer.className.replace(/border-gray-800|border-gray-300/g, config.codeEditor.border);
     }
     
-    // Update code editor
-    if (codeEditor) {
-        codeEditor.className = codeEditor.className.replace(/bg-black|bg-white/g, config.codeEditor.bg);
-        codeEditor.className = codeEditor.className.replace(/text-green-400|text-green-700/g, config.codeEditor.text);
+    // Update Monaco Editor theme
+    if (monacoEditor) {
+        const newTheme = isDark ? 'openqasm-theme-dark' : 'openqasm-theme-light';
+        monaco.editor.setTheme(newTheme);
+        
+        // Update theme definition
+        monaco.editor.defineTheme('openqasm-theme-dark', {
+            base: 'vs-dark',
+            inherit: true,
+            rules: [
+                { token: 'keyword', foreground: '569CD6', fontStyle: 'bold' },
+                { token: 'controlflow', foreground: 'C586C0', fontStyle: 'bold' },  // Purple for if/else/for/while
+                { token: 'function', foreground: 'DCDCAA' },  // Yellow for function/gate names
+                { token: 'type', foreground: '4EC9B0' },
+                { token: 'string', foreground: 'CE9178' },
+                { token: 'number', foreground: 'B5CEA8' },
+                { token: 'comment', foreground: '6A9955', fontStyle: 'italic' },
+                { token: 'operator', foreground: 'D4D4D4' },
+                { token: 'delimiter', foreground: 'D4D4D4' },
+                { token: 'identifier', foreground: 'D4D4D4' },
+                { token: 'constant', foreground: '569CD6' }
+            ],
+            colors: {
+                'editor.background': '#000000',
+                'editor.foreground': '#10b981',
+                'editorLineNumber.foreground': '#6A9955',
+                'editor.selectionBackground': '#264f78',
+                'editor.lineHighlightBackground': '#1e1e1e'
+            }
+        });
+        
+        monaco.editor.defineTheme('openqasm-theme-light', {
+            base: 'vs',
+            inherit: true,
+            rules: [
+                { token: 'keyword', foreground: '0000FF', fontStyle: 'bold' },
+                { token: 'controlflow', foreground: '7954A3', fontStyle: 'bold' },  // Purple for if/else/for/while
+                { token: 'function', foreground: 'B8860B' },  // Yellow/DarkGoldenrod for function/gate names
+                { token: 'type', foreground: '267F99' },
+                { token: 'string', foreground: 'A31515' },
+                { token: 'number', foreground: '098658' },
+                { token: 'comment', foreground: '008000', fontStyle: 'italic' },
+                { token: 'operator', foreground: '000000' },
+                { token: 'delimiter', foreground: '000000' },
+                { token: 'identifier', foreground: '000000' },
+                { token: 'constant', foreground: '0000FF' }
+            ],
+            colors: {
+                'editor.background': '#FFFFFF',
+                'editor.foreground': '#059669',
+                'editorLineNumber.foreground': '#858585',
+                'editor.selectionBackground': '#add6ff',
+                'editor.lineHighlightBackground': '#f0f0f0'
+            }
+        });
+        
+        monaco.editor.setTheme(isDark ? 'openqasm-theme-dark' : 'openqasm-theme-light');
     }
     
     // Update circuit diagram container (same theme as code editor)
@@ -1012,7 +1704,7 @@ function applyTheme(theme) {
         // Update pre/code text colors (for text circuit diagrams)
         const preElements = circuitDiagram.querySelectorAll('pre, code');
         preElements.forEach(el => {
-            el.className = el.className.replace(/text-green-400|text-green-700/g, config.codeEditor.text);
+            el.className = el.className.replace(/text-white|text-black/g, config.codeEditor.text);
         });
     }
     
@@ -1023,7 +1715,7 @@ function applyTheme(theme) {
         outputPanel.className = outputPanel.className.replace(/border-gray-800|border-gray-300/g, config.outputPanel.border);
     }
     
-    // Update resize handle
+    // Update vertical resize handle
     const resizeHandle = document.getElementById('resizeHandle');
     if (resizeHandle) {
         resizeHandle.className = resizeHandle.className.replace(/bg-gray-800|bg-gray-200/g, isDark ? 'bg-gray-800' : 'bg-gray-200');
@@ -1032,6 +1724,18 @@ function applyTheme(theme) {
         if (resizeHandleInner) {
             resizeHandleInner.className = resizeHandleInner.className.replace(/bg-gray-600|bg-gray-400/g, isDark ? 'bg-gray-600' : 'bg-gray-400');
             resizeHandleInner.className = resizeHandleInner.className.replace(/group-hover:bg-gray-500|group-hover:bg-gray-500/g, isDark ? 'group-hover:bg-gray-500' : 'group-hover:bg-gray-500');
+        }
+    }
+    
+    // Update horizontal resize handle
+    const horizontalResizeHandle = document.getElementById('horizontalResizeHandle');
+    if (horizontalResizeHandle) {
+        horizontalResizeHandle.className = horizontalResizeHandle.className.replace(/bg-gray-800|bg-gray-200/g, isDark ? 'bg-gray-800' : 'bg-gray-200');
+        horizontalResizeHandle.className = horizontalResizeHandle.className.replace(/hover:bg-gray-700|hover:bg-gray-300/g, isDark ? 'hover:bg-gray-700' : 'hover:bg-gray-300');
+        const horizontalResizeHandleInner = horizontalResizeHandle.querySelector('div');
+        if (horizontalResizeHandleInner) {
+            horizontalResizeHandleInner.className = horizontalResizeHandleInner.className.replace(/bg-gray-600|bg-gray-400/g, isDark ? 'bg-gray-600' : 'bg-gray-400');
+            horizontalResizeHandleInner.className = horizontalResizeHandleInner.className.replace(/group-hover:bg-gray-500|group-hover:bg-gray-500/g, isDark ? 'group-hover:bg-gray-500' : 'group-hover:bg-gray-500');
         }
     }
     
@@ -1106,7 +1810,7 @@ function applyTheme(theme) {
         const counts = {};
         tableRows.forEach(row => {
             const state = row.querySelector('td:first-child')?.textContent;
-            const count = parseInt(row.querySelector('td:nth-child(2)')?.textContent);
+            const count = parseInt(row.querySelector('td:nth-child(3)')?.textContent);
             if (state && count) {
                 counts[state] = count;
             }
@@ -1151,6 +1855,7 @@ function applyTheme(theme) {
     const compilerNavIcon = document.getElementById('compilerNavIcon');
     if (compilerNavIcon) {
         compilerNavIcon.setAttribute('stroke', isDark ? '#ffffff' : '#000000');
+        compilerNavIcon.parentElement.className = compilerNavIcon.parentElement.className.replace( isDark ? /text-gray-900/g : /text-gray-100/g, isDark ? 'text-gray-100' : 'text-gray-900');
     }
     
     // Update save button icon

@@ -6,6 +6,8 @@ A comprehensive web-based platform for compiling, simulating, and visualizing qu
 
 This project implements a full-stack quantum computing development environment that combines the OpenQASM 3 specification with Qiskit's simulation capabilities. The platform features a modern, responsive web interface that enables real-time circuit visualization, interactive simulation, and comprehensive result analysis.
 
+![Quantum Programming IDE Interface](resources/2026-01-15_03-06-03.png)
+
 ### Key Features
 
 - **OpenQASM 3 Compliance**: Full support for OpenQASM 3 syntax including qubit/bit registers, gate operations, measurements, and control flow constructs
@@ -17,6 +19,10 @@ This project implements a full-stack quantum computing development environment t
 - **Persistent Storage**: Local file management system for saving and organizing quantum circuit definitions
 - **Standalone Executable**: PyInstaller support for creating portable, single-file executables with all dependencies bundled
 - **Offline Capable**: Local Tailwind CSS and all assets included - no external CDN dependencies required
+- **Advanced Code Editor**: Monaco Editor with OpenQASM 3 syntax highlighting, real-time error detection, and color-coded gate types
+- **Interactive Circuit Visualization**: Multi-color circuit diagrams matching code syntax highlighting (blue for measure, cyan for gates, yellow for functions)
+- **Resizable Panels**: Adjustable code editor and circuit diagram sections with persistent layout preferences
+- **Dirac Notation Display**: Quantum state representation in standard bra-ket notation (|000⟩, |001⟩, etc.)
 
 ## Architecture
 
@@ -26,6 +32,7 @@ This project implements a full-stack quantum computing development environment t
 - **Quantum Framework**: Qiskit, Qiskit Aer (simulation)
 - **Parser**: OpenQASM 3 parser with AST generation
 - **Frontend**: HTML5, TailwindCSS (local), Vanilla JavaScript
+- **Code Editor**: Monaco Editor (VS Code editor engine) with custom OpenQASM 3 language support
 - **Visualization**: Matplotlib (circuit diagrams), Canvas API (histograms)
 - **Distribution**: PyInstaller (standalone executable creation)
 
@@ -112,10 +119,12 @@ Quantum_Programming_IDE/
    ```
 
 4. **Run Application**:
+
    ```bash
    cd backend
    python app.py
    ```
+
    The application will be available at `http://127.0.0.1:5010`
 
 ### Building Standalone Executable
@@ -650,6 +659,15 @@ For questions, technical issues, collaboration inquiries, or research partnershi
 
 ## Version History
 
+- **v1.0.1** (2026-01-15): Enhanced user interface and code editor features
+
+  - Monaco Editor integration with syntax highlighting
+  - Real-time syntax error detection
+  - Multi-color circuit diagram visualization (text and SVG)
+  - Resizable code editor and circuit diagram panels
+  - Dirac notation column in simulation results table
+  - Improved color scheme matching code syntax highlighting
+
 - **v1.0.0** (2026-01-13): Initial release with core compilation, simulation, and visualization features
   - PyInstaller support for standalone executable distribution
   - Local Tailwind CSS for offline operation
@@ -658,5 +676,5 @@ For questions, technical issues, collaboration inquiries, or research partnershi
 
 ---
 
-**Version**: 1.0.0
-**Last Updated**: 2026-01-13
+**Version**: 1.0.1
+**Last Updated**: 2026-01-15
