@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>QASM IDE</title>
+    <title>QASM IDE - Compiler</title>
     <script src="{{ url_for('static', filename='js/tailwind.min.js') }}"></script>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
     <!-- Monaco Editor -->
@@ -62,6 +62,13 @@
             </div>
 
             <nav class="space-y-2">
+                <a href="/home" class="nav-item w-full text-left px-4 py-2 rounded-lg hover:bg-gray-800 transition flex items-center space-x-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+                        <polyline points="9 22 9 12 15 12 15 22"></polyline>
+                    </svg>
+                    <span>Home</span>
+                </a>
                 <button class="nav-item active w-full text-left px-4 py-2 rounded-lg bg-gray-800 text-gray-900 flex items-left space-x-2">
                     <svg id="compilerNavIcon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m18 16 4-4-4-4"></path><path d="m6 8-4 4 4 4"></path><path d="m14.5 4-5 16"></path></svg>
                     <span>Compiler</span>

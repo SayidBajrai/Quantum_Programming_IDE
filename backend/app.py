@@ -1,7 +1,7 @@
 """
 Flask entry point for OpenQASM 3 Web Compiler & Simulator
 """
-from flask import Flask, render_template, request, jsonify, Response
+from flask import Flask, render_template, request, jsonify, Response, redirect, url_for
 from compiler.executor import compile_and_simulate
 from utils.errors import CompilationError, SimulationError
 import traceback
@@ -43,13 +43,18 @@ def get_saved_dir():
 
 @app.route('/')
 def index():
-    """Serve the main UI"""
-    return render_template('index.html')
+    """Redirect root to home page"""
+    return redirect(url_for('home'))
+
+@app.route('/home')
+def home():
+    """Serve the home page"""
+    return render_template('home.html')
 
 @app.route('/compiler')
 def compiler():
-    """Serve the compiler page (alias for index)"""
-    return render_template('index.html')
+    """Serve the compiler page"""
+    return render_template('compiler.html')
 
 @app.route('/circuit-diagram', methods=['POST'])
 def circuit_diagram():
@@ -93,14 +98,25 @@ def circuit_diagram():
                     "error": "OpenQASM 3 parser not available. Please install qiskit-qasm3-import."
                 }), 400
             
-            # Bind parameters if circuit has input parameters (for diagram generation)
-            if circuit.parameters:
-                import math
-                parameter_binds = {}
-                for param in circuit.parameters:
-                    # Use pi/2 as a reasonable default for quantum gate parameters
-                    parameter_binds[param] = math.pi / 2.0
-                circuit = circuit.assign_parameters(parameter_binds)
+            # Always try to bind parameters if present, else just draw circuit.
+            import math
+            try:
+                if circuit.parameters:
+                    parameter_binds = {param: math.pi / 2.0 for param in circuit.parameters}
+                    circuit_bound = circuit.assign_parameters(parameter_binds)
+                    text_diagram = str(circuit_bound.draw(output='text', fold=-1))
+                else:
+                    text_diagram = str(circuit.draw(output='text', fold=-1))
+                return jsonify({
+                    "success": True,
+                    "text": text_diagram,
+                    "format": "text"
+                })
+            except Exception as e:
+                return jsonify({
+                    "success": False,
+                    "error": f"Failed to generate circuit diagram: {str(e)}"
+                }), 500
         except CompilationError as e:
             return jsonify({
                 "success": False,
@@ -112,30 +128,30 @@ def circuit_diagram():
                 "error": f"Failed to parse circuit: {str(e)}"
             }), 400
         
-        # Generate SVG diagram
-        try:
-            import matplotlib
-            matplotlib.use('Agg')  # Use non-interactive backend
-            import matplotlib.pyplot as plt
+        # # Generate SVG diagram
+        # try:
+        #     import matplotlib
+        #     matplotlib.use('Agg')  # Use non-interactive backend
+        #     import matplotlib.pyplot as plt
             
-            # Draw circuit with matplotlib - fold=-1 prevents horizontal folding (removes » and «)
-            fig = circuit.draw(output='mpl', fold=-1, style={'backgroundcolor': '#0f0f0f', 
-                                                              'textcolor': '#10b981',
-                                                              'gatecolor': '#10b981'})
+        #     # Draw circuit with matplotlib - fold=-1 prevents horizontal folding (removes » and «)
+        #     fig = circuit.draw(output='mpl', fold=-1, style={'backgroundcolor': '#0f0f0f', 
+        #                                                       'textcolor': '#10b981',
+        #                                                       'gatecolor': '#10b981'})
             
-            # Convert to SVG
-            img_buffer = io.BytesIO()
-            fig.savefig(img_buffer, format='svg', bbox_inches='tight', 
-                       facecolor='#0f0f0f', edgecolor='none', transparent=True)
-            img_buffer.seek(0)
-            svg_data = img_buffer.read().decode('utf-8')
-            plt.close(fig)
+        #     # Convert to SVG
+        #     img_buffer = io.BytesIO()
+        #     fig.savefig(img_buffer, format='svg', bbox_inches='tight', 
+        #                facecolor='#0f0f0f', edgecolor='none', transparent=True)
+        #     img_buffer.seek(0)
+        #     svg_data = img_buffer.read().decode('utf-8')
+        #     plt.close(fig)
             
-            return jsonify({
-                "success": True,
-                "svg": svg_data
-            })
-        except Exception as e:
+        #     return jsonify({
+        #         "success": True,
+        #         "svg": svg_data
+        #     })
+        # except Exception as e:
             # Fallback to text representation
             try:
                 # Use str() to convert TextDrawing to string - fold=-1 prevents horizontal folding
@@ -150,6 +166,109 @@ def circuit_diagram():
                     "success": False,
                     "error": f"Failed to generate diagram: {str(e2)}"
                 }), 500
+        
+    except Exception as e:
+        return jsonify({
+            "success": False,
+            "error": f"Unexpected error: {str(e)}"
+        }), 500
+
+@app.route('/download-circuit', methods=['POST'])
+def download_circuit():
+    """
+    Download circuit diagram as PNG using matplotlib
+    
+    Expected JSON:
+    {
+        "code": "..."
+    }
+    
+    Returns:
+    PNG image file
+    """
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({
+                "success": False,
+                "error": "No JSON data provided"
+            }), 400
+        
+        code = data.get('code', '')
+        if not code:
+            return jsonify({
+                "success": False,
+                "error": "No code provided"
+            }), 400
+        
+        # Parse circuit using qiskit-qasm3-import
+        try:
+            from compiler.parser import parse_qasm
+            circuit = parse_qasm(code)
+            
+            if circuit is None:
+                return jsonify({
+                    "success": False,
+                    "error": "OpenQASM 3 parser not available. Please install qiskit-qasm3-import."
+                }), 400
+            
+            # Bind parameters if circuit has input parameters
+            if circuit.parameters:
+                import math
+                parameter_binds = {}
+                for param in circuit.parameters:
+                    parameter_binds[param] = math.pi / 2.0
+                circuit = circuit.assign_parameters(parameter_binds)
+        except CompilationError as e:
+            return jsonify({
+                "success": False,
+                "error": f"Compilation error: {str(e)}"
+            }), 400
+        except Exception as e:
+            return jsonify({
+                "success": False,
+                "error": f"Failed to parse circuit: {str(e)}"
+            }), 400
+        
+        # Generate PNG using matplotlib
+        try:
+            import matplotlib
+            matplotlib.use('Agg')  # Use non-interactive backend
+            import matplotlib.pyplot as plt
+            
+            # Draw circuit with matplotlib - fold=-1 prevents horizontal folding
+            fig = circuit.draw(output='mpl', fold=-1)
+            
+            # Save to BytesIO buffer as PNG, use a lower DPI to speed up for big circuits
+            img_buffer = io.BytesIO()
+            try:
+                # Lower dpi and less tight bbox for speed
+                fig.savefig(
+                    img_buffer,
+                    format='png',
+                    bbox_inches='tight',
+                    facecolor='white',
+                    edgecolor='none',
+                    dpi=70,  # Lower DPI for faster rendering (default=100, was 150)
+                    pad_inches=0.05  # Slightly less whitespace for speed
+                )
+            finally:
+                plt.close(fig)
+            img_buffer.seek(0)
+            
+            # Return PNG file
+            return Response(
+                img_buffer.getvalue(),
+                mimetype='image/png',
+                headers={
+                    'Content-Disposition': 'attachment; filename=circuit.png'
+                }
+            )
+        except Exception as e:
+            return jsonify({
+                "success": False,
+                "error": f"Failed to generate PNG: {str(e)}"
+            }), 500
         
     except Exception as e:
         return jsonify({

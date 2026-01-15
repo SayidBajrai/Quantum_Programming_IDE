@@ -23,6 +23,7 @@ const sidebarToggleMobile = document.getElementById('sidebarToggleMobile');
 const sidebar = document.getElementById('sidebar');
 const circuitDiagram = document.getElementById('circuitDiagram');
 const circuitStatus = document.getElementById('circuitStatus');
+const downloadCircuitBtn = document.getElementById('downloadCircuitBtn');
 const resizeHandle = document.getElementById('resizeHandle');
 const horizontalResizeHandle = document.getElementById('horizontalResizeHandle');
 const editorSection = document.getElementById('editorSection');
@@ -72,13 +73,19 @@ function initializeMonacoEditor() {
                     [/\/\/.*$/, 'comment'],  // Single-line comments
                     [/\/\*[\s\S]*?\*\//, 'comment'],  // Multi-line comments
                     
-                    // Control flow keywords (purple)
-                    [/\b(if|else|for|while)\b/, 'controlflow'],
+                    // Control flow keywords (purple) - including break, continue, return
+                    [/\b(include|if|else|for|while|break|continue|return)\b/, 'controlflow'],
                     [/else\s+if/, 'controlflow'],  // Handle "else if" as one token
                     
-                    // Built-in gates (must come before function calls to avoid matching them as functions)
+                    // Modifiers (italic) - ctrl, inv, gphase must come before gates to match them first
+                    [/\b(ctrl|inv)\b/, 'modifiers'], 
+                    
+                    // Built-in gates (yellow - function-like)
                     // Match built-in gates as whole words (with or without following parenthesis)
-                    [/\b(h|x|y|z|s|t|cx|cy|cz|ch|swap|ccx|cswap|u|p|rx|ry|rz|r|crx|cry|crz|cu|cp|phase|cphase|id|tdg|sdg)\b/, 'type'],
+                    [/\b(h|x|y|z|s|cx|cy|cz|ch|swap|ccx|cswap|u|p|rx|ry|rz|r|crx|cry|crz|cu|cp|phase|cphase|id|tdg|sdg)\b/, 'function-like'],
+                    
+                    // measure and reset (yellow - function-like)
+                    [/\b(measure|reset)\b/, 'function-like-2'],
                     
                     // Gate/function definitions: match keyword and function name separately
                     [/\bgate\b/, 'keyword'],
@@ -86,27 +93,33 @@ function initializeMonacoEditor() {
                     [/\bcal\b/, 'keyword'],
                     [/\bdefcal\b/, 'keyword'],
                     
-                    // Function/gate calls: identifier followed by ( 
+                    // Function/gate calls: identifier followed by ( , example: my_gate(a * 2) aliased[0], q[{1, 2}][0]; so the 'my_gate' is yellow and not 'my_gate('
                     // Built-in gates are already matched above, so remaining identifiers with ( are functions
                     [/\b([a-zA-Z_][a-zA-Z0-9_]*)\s*\(/, 'function'],
                     
-                    // Keywords (excluding control flow and gate/def which are handled above)
-                    [/OPENQASM\s+\d+/, 'keyword'],
-                    [/include|qubit|bit|measure|box|let|const|break|continue|return/, 'keyword'],
+                    // Language keyword (gray) - OPENQASM 3.0; or OPENQASM 3;
+                    [/OPENQASM\s+\d+\.\d+;$/, 'language'],
+
+                    // Keywords (dark blue) - qubit, bit, include, let, gate
+                    [/\b(qubit|bit|let|gate|box|const|input|float)\b/, 'keyword'],
                     
                     // Operators
                     [/[+\-*/=<>!&|]+/, 'operator'],
                     [/[(),;\[\]{}]/, 'delimiter'],
                     
                     // Numbers
-                    [/\d+\.?\d*/, 'number'],
-                    [/pi/, 'constant'],
+                    [/\d+\.?\d*/, 'number'], 
                     
                     // Strings
                     [/["'][^"']*["']/, 'string'],
                     
+                    // Match parameters in gate/function definitions: identifiers after ) and before {
+                    // Pattern: gate name(params) param1, param2 { or def name(params) param1, param2 {
+                    // Match identifiers that appear after ) when followed by comma, space+comma, or space+{
+                    [/\b([a-zA-Z_][a-zA-Z0-9_]*)\s*(?=\s*[,{])/, 'in-value'],  // Parameters in gate/def signatures (c, t in gate my_gate(a) c, t {)
+                    
                     // Identifiers
-                    [/[a-zA-Z_][a-zA-Z0-9_]*/, 'identifier'],
+                    [/[a-zA-Z_][a-zA-Z0-9_]*/, 'identifier'], 
                     
                     // Whitespace
                     [/\s+/, 'white']
@@ -118,30 +131,7 @@ function initializeMonacoEditor() {
         const currentTheme = localStorage.getItem('theme') || 'dark';
         const isDark = currentTheme === 'dark';
         
-        monaco.editor.defineTheme('openqasm-theme', {
-            base: isDark ? 'vs-dark' : 'vs',
-            inherit: true,
-            rules: [
-                { token: 'keyword', foreground: '569CD6', fontStyle: 'bold' },
-                { token: 'controlflow', foreground: 'C586C0', fontStyle: 'bold' },  // Purple for if/else/for/while
-                { token: 'function', foreground: 'DCDCAA' },  // Yellow for function/gate names
-                { token: 'type', foreground: '4EC9B0' },
-                { token: 'string', foreground: 'CE9178' },
-                { token: 'number', foreground: 'B5CEA8' },
-                { token: 'comment', foreground: '6A9955', fontStyle: 'italic' },
-                { token: 'operator', foreground: 'D4D4D4' },
-                { token: 'delimiter', foreground: 'D4D4D4' },
-                { token: 'identifier', foreground: isDark ? 'D4D4D4' : '000000' },
-                { token: 'constant', foreground: '569CD6' }
-            ],
-            colors: {
-                'editor.background': isDark ? '#000000' : '#FFFFFF',
-                'editor.foreground': isDark ? '#10b981' : '#059669',
-                'editorLineNumber.foreground': isDark ? '#6A9955' : '#858585',
-                'editor.selectionBackground': isDark ? '#264f78' : '#add6ff',
-                'editor.lineHighlightBackground': isDark ? '#1e1e1e' : '#f0f0f0'
-            }
-        });
+        updateMonacoEditorTheme(isDark);
         
         // Create editor instance
         monacoEditor = monaco.editor.create(codeEditorContainer, {
@@ -597,6 +587,9 @@ function setupEventListeners() {
     runBtn.addEventListener('click', runSimulation);
     if (saveBtn) {
         saveBtn.addEventListener('click', saveFile);
+    }
+    if (downloadCircuitBtn) {
+        downloadCircuitBtn.addEventListener('click', downloadCircuitDiagram);
     }
     themeToggle.addEventListener('click', toggleTheme);
     
@@ -1184,25 +1177,8 @@ async function updateCircuitDiagram() {
         
         const data = await response.json();
         
-        if (data.success) {
-            if (data.svg) {
-                // Display SVG diagram
-                circuitDiagram.innerHTML = data.svg;
-                circuitStatus.textContent = 'Valid';
-                
-                // Style the SVG for theme and apply syntax-based colors
-                const svg = circuitDiagram.querySelector('svg');
-                if (svg) {
-                    svg.style.maxWidth = '100%';
-                    svg.style.height = 'auto';
-                    
-                    // Parse code to identify gate types
-                    const gateColors = parseGateColors(code, isDark);
-                    
-                    // Apply colors to gate elements based on syntax highlighting
-                    applyGateColors(svg, gateColors);
-                }
-            } else if (data.text) {
+        if (data.success) { 
+            if (data.format === 'text') {
                 // Display text diagram with multi-color syntax highlighting
                 const coloredText = colorizeCircuitText(data.text, code, isDark);
                 circuitDiagram.innerHTML = `
@@ -1237,19 +1213,93 @@ function escapeHtml(text) {
     return div.innerHTML;
 }
 
-// Parse code to identify gate types and their colors
+// Download circuit diagram as PNG using matplotlib backend
+async function downloadCircuitDiagram() {
+    if (!monacoEditor) return;
+    
+    const code = monacoEditor.getValue().trim();
+    if (!code) {
+        alert('Please enter some OpenQASM 3 code to download');
+        return;
+    }
+    
+    try {
+        // Disable button during download
+        if (downloadCircuitBtn) {
+            downloadCircuitBtn.disabled = true;
+            const originalHTML = downloadCircuitBtn.innerHTML;
+            downloadCircuitBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>';
+        }
+        
+        const response = await fetch('/download-circuit', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ code: code })
+        });
+        
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({ error: 'Failed to download circuit diagram' }));
+            throw new Error(errorData.error || 'Failed to download circuit diagram');
+        }
+        
+        // Get the PNG blob from response
+        const blob = await response.blob();
+        
+        // Create download link
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'circuit.png';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        
+    } catch (error) {
+        console.error('Error downloading circuit diagram:', error);
+        alert('Failed to download circuit diagram: ' + error.message);
+    } finally {
+        // Re-enable button
+        if (downloadCircuitBtn) {
+            downloadCircuitBtn.disabled = false;
+            const currentTheme = localStorage.getItem('theme') || 'dark';
+            const isDark = currentTheme === 'dark';
+            const strokeColor = isDark ? '#ffffff' : '#000000';
+            downloadCircuitBtn.innerHTML = `<svg id="downloadCircuitBtnIcon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="${strokeColor}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>`;
+        }
+    }
+}
+
+// Get Monaco theme colors based on token type
+function getMonacoThemeColor(tokenType, isDark) {
+    const colors = {
+        'function': isDark ? '#DCDCAA' : '#A6A814',  // Yellow for user defined function/gates names
+        'function-like': isDark ? '#b8ff75' : '#66BA14',  // Yellow-green for function-like gate names (h, cx, ry)
+        'function-like-2': isDark ? '#70ff98' : '#0AB139',  // Light green for function-like names (measure, reset)
+        'controlflow': '#C586C0',  // Purple for control flow
+    };
+    return colors[tokenType] || (isDark ? '#D4D4D4' : '#000000');
+}
+
+// Parse code to identify gate types and their colors based on Monaco theme
 function parseGateColors(code, isDark) {
     const gateColors = {};
     
-    // Keywords (blue) - measure
-    const keywords = ['measure'];
-    const keywordColor = '#569CD6'; // Blue
+    // Function-like-2 gates (measure, reset) - light green
+    const functionLike2Gates = ['measure', 'reset'];
+    const functionLike2Color = getMonacoThemeColor('function-like-2', isDark);
     
-    // Built-in gates (cyan)
-    const builtInGates = ['h', 'x', 'y', 'z', 's', 't', 'cx', 'cy', 'cz', 'ch', 'swap', 
+    // Built-in gates (function-like) - yellow-green
+    const builtInGates = ['h', 'x', 'y', 'z', 's', 'cx', 'cy', 'cz', 'ch', 'swap', 
                          'ccx', 'cswap', 'u', 'p', 'rx', 'ry', 'rz', 'r', 'crx', 'cry', 
                          'crz', 'cu', 'cp', 'phase', 'cphase', 'id', 'tdg', 'sdg'];
-    const builtInColor = '#4EC9B0'; // Cyan
+    const builtInColor = getMonacoThemeColor('function-like', isDark);
+    
+    // Extract user-defined function/gate names (function) - yellow
+    const functionNames = extractFunctionNames(code);
+    const functionColor = getMonacoThemeColor('function', isDark);
     
     // Parse code line by line
     const lines = code.split('\n');
@@ -1257,19 +1307,26 @@ function parseGateColors(code, isDark) {
         // Remove comments
         const cleanLine = line.split('//')[0].split('/*')[0];
         
-        // Check for measure (keyword)
-        if (cleanLine.includes('measure')) {
-            gateColors['M'] = keywordColor; // M is the symbol for measure
-        }
+        // Check for measure and reset (function-like-2)
+        functionLike2Gates.forEach(gate => {
+            const gateRegex = new RegExp(`\\b${gate}\\b\\s+\\w+(?:\\s*\\[[^\\]]+\\])?(?:\\s*->\\s*\\w+)?\\s*;`, 'i')
+            if (gateRegex.test(cleanLine)) {
+                if (gate === 'measure') {
+                    gateColors['M'] = functionLike2Color; // M is the symbol for measure
+                } else if (gate === 'reset') {
+                    gateColors['|0>'] = functionLike2Color; // |0> is the symbol for reset
+                }
+            }
+        });
         
-        // Check for built-in gates
+        // Check for built-in gates (function-like)
         builtInGates.forEach(gate => {
             // Match gate name as whole word followed by space or (
-            const gateRegex = new RegExp(`\\b${gate}\\b\\s*[\\[(]`, 'i');
+            const gateRegex = new RegExp(`\\b${gate}\\b\\s+\\w+\\s*[[(]`, 'i')
             if (gateRegex.test(cleanLine)) {
                 // Map gate names to their circuit diagram symbols
                 const symbolMap = {
-                    'h': 'H', 'x': 'X', 'y': 'Y', 'z': 'Z', 's': 'S', 't': 'T',
+                    'h': 'H', 'x': 'X', 'y': 'Y', 'z': 'Z', 's': 'S',
                     'cx': 'X', 'cy': 'Y', 'cz': 'Z', 'ch': 'H',
                     'swap': 'SWAP', 'ccx': 'X', 'cswap': 'SWAP',
                     'u': 'U', 'p': 'P', 'rx': 'RX', 'ry': 'RY', 'rz': 'RZ', 'r': 'R',
@@ -1282,6 +1339,17 @@ function parseGateColors(code, isDark) {
                 gateColors[symbol] = builtInColor;
             }
         });
+        
+        // Check for user-defined functions/gates (function)
+        functionNames.forEach(funcName => {
+            const funcRegex = new RegExp(`\\b${funcName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b\\s*[\\[(]`, 'i');
+            if (funcRegex.test(cleanLine)) {
+                // Use the function name as the symbol (circuit diagrams typically show the gate name)
+                gateColors[funcName] = functionColor;
+                // Also try uppercase version
+                gateColors[funcName.toUpperCase()] = functionColor;
+            }
+        });
     });
     
     return gateColors;
@@ -1290,10 +1358,9 @@ function parseGateColors(code, isDark) {
 // Colorize text circuit diagram with syntax-based colors
 function colorizeCircuitText(text, code, isDark) {
     const gateColors = parseGateColors(code, isDark);
-    const keywordColor = '#569CD6'; // Blue for measure
-    const builtInColor = '#4EC9B0'; // Cyan for built-in gates
-    const functionColor = '#DCDCAA'; // Yellow for custom functions
-    const controlFlowColor = '#C586C0'; // Purple for control flow
+    // Use Monaco theme colors
+    const functionColor = getMonacoThemeColor('function', isDark); // Yellow for custom functions
+    const controlFlowColor = getMonacoThemeColor('controlflow', isDark); // Purple for control flow
     
     // Escape HTML first
     let coloredText = escapeHtml(text);
@@ -1390,6 +1457,27 @@ function colorizeCircuitText(text, code, isDark) {
                     }
                 }
             });
+        }
+        
+        // Color reset gates (|0> symbol only) - do this last
+        if (gateColors['|0>']) {
+            // Escape special regex characters in |0> (| needs to be escaped)
+            const escapedReset = '\\|0>';
+            const regex = new RegExp(escapedReset, 'g');
+            let match;
+            while ((match = regex.exec(line)) !== null) {
+                // Check for overlap
+                const overlaps = lineColorMap.some(item => 
+                    match.index < item.end && match.index + match[0].length > item.start
+                );
+                if (!overlaps) {
+                    lineColorMap.push({
+                        start: match.index,
+                        end: match.index + match[0].length,
+                        color: gateColors['|0>']
+                    });
+                }
+            }
         }
         
         // Sort by start position
@@ -1491,7 +1579,7 @@ function applyGateColors(svg, gateColors) {
         }
     });
     
-    // Also handle standalone text elements (for measure gates)
+    // Also handle standalone text elements (for measure gates, reset gates, etc.)
     const textElements = svg.querySelectorAll('text');
     textElements.forEach(text => {
         const textContent = text.textContent.trim();
@@ -1530,6 +1618,40 @@ const themeConfig = {
         btnIcon: { stroke: '#000000' },
     }
 };
+
+
+
+function updateMonacoEditorTheme(isDark) {
+    monaco.editor.defineTheme('openqasm-theme', {
+        base: isDark ? 'vs-dark' : 'vs',
+        inherit: true,
+        rules: [
+            { token: 'Language', foreground: '#808080', fontStyle: 'bold' }, // gray for Language keyword    
+            { token: 'keyword', foreground: '#4981B0', fontStyle: 'bold' }, // dark blue for keyword (qubit, bit, include, let, gate)
+            { token: 'controlflow', foreground: '#C586C0', fontStyle: 'bold' },  // Purple for if/else/for/while/break/continue/return
+            { token: 'function', foreground: isDark ? '#DCDCAA' : '#A6A814' },  // Yellow for user defined function/gates names
+            { token: 'function-like', foreground: isDark ? '#9AD95D' : '#66BA14' },  // Yellow-green for function-like gate names (h, cx, ry)
+            { token: 'function-like-2', foreground: isDark ? '#10B880' : '#0AB139' },  // Light green for function-like names (measure, reset)
+            // { token: 'type', foreground: '#4EC9B0' },  // Cyan for type (float, int, etc.)
+            { token: 'string', foreground: isDark ? '#CE9178' : '#9D3F1A' },  // Orange for string (example: "Hello, world!")
+            { token: 'number', foreground: isDark ? '#B5CEA8' : '#407E1E' },  // Green for number (example: 1, 2, 3)
+            { token: 'comment', foreground: '#808080', fontStyle: 'italic' }, // gray italic for comment
+            { token: 'operator', foreground: isDark ? '#D4D4D4' : '#000000' },
+            { token: 'delimiter', foreground: isDark ? '#D4D4D4' : '#000000' },
+            { token: 'identifier', foreground: isDark ? '#D4D4D4' : '#000000' },
+            { token: 'in-value', foreground: isDark ? '#88C0D7' : '#197297' },
+            { token: 'modifiers', fontStyle: 'italic' } // gray italic for modifiers (ctrl, inv, {text} @)
+        ],
+        colors: {
+            'editor.background': isDark ? '#000000' : '#FFFFFF',
+            'editor.foreground': isDark ? '#FFFFFF' : '#000000',
+            'editorLineNumber.foreground': isDark ? '#6A9955' : '#858585',
+            'editor.selectionBackground': isDark ? '#264f78' : '#add6ff',
+            'editor.lineHighlightBackground': isDark ? '#1e1e1e' : '#f0f0f0'
+        }
+    });
+}
+
 
 function applyTheme(theme) {
     const config = themeConfig[theme];
@@ -1625,62 +1747,10 @@ function applyTheme(theme) {
     
     // Update Monaco Editor theme
     if (monacoEditor) {
-        const newTheme = isDark ? 'openqasm-theme-dark' : 'openqasm-theme-light';
-        monaco.editor.setTheme(newTheme);
-        
-        // Update theme definition
-        monaco.editor.defineTheme('openqasm-theme-dark', {
-            base: 'vs-dark',
-            inherit: true,
-            rules: [
-                { token: 'keyword', foreground: '569CD6', fontStyle: 'bold' },
-                { token: 'controlflow', foreground: 'C586C0', fontStyle: 'bold' },  // Purple for if/else/for/while
-                { token: 'function', foreground: 'DCDCAA' },  // Yellow for function/gate names
-                { token: 'type', foreground: '4EC9B0' },
-                { token: 'string', foreground: 'CE9178' },
-                { token: 'number', foreground: 'B5CEA8' },
-                { token: 'comment', foreground: '6A9955', fontStyle: 'italic' },
-                { token: 'operator', foreground: 'D4D4D4' },
-                { token: 'delimiter', foreground: 'D4D4D4' },
-                { token: 'identifier', foreground: 'D4D4D4' },
-                { token: 'constant', foreground: '569CD6' }
-            ],
-            colors: {
-                'editor.background': '#000000',
-                'editor.foreground': '#10b981',
-                'editorLineNumber.foreground': '#6A9955',
-                'editor.selectionBackground': '#264f78',
-                'editor.lineHighlightBackground': '#1e1e1e'
-            }
-        });
-        
-        monaco.editor.defineTheme('openqasm-theme-light', {
-            base: 'vs',
-            inherit: true,
-            rules: [
-                { token: 'keyword', foreground: '0000FF', fontStyle: 'bold' },
-                { token: 'controlflow', foreground: '7954A3', fontStyle: 'bold' },  // Purple for if/else/for/while
-                { token: 'function', foreground: 'B8860B' },  // Yellow/DarkGoldenrod for function/gate names
-                { token: 'type', foreground: '267F99' },
-                { token: 'string', foreground: 'A31515' },
-                { token: 'number', foreground: '098658' },
-                { token: 'comment', foreground: '008000', fontStyle: 'italic' },
-                { token: 'operator', foreground: '000000' },
-                { token: 'delimiter', foreground: '000000' },
-                { token: 'identifier', foreground: '000000' },
-                { token: 'constant', foreground: '0000FF' }
-            ],
-            colors: {
-                'editor.background': '#FFFFFF',
-                'editor.foreground': '#059669',
-                'editorLineNumber.foreground': '#858585',
-                'editor.selectionBackground': '#add6ff',
-                'editor.lineHighlightBackground': '#f0f0f0'
-            }
-        });
-        
-        monaco.editor.setTheme(isDark ? 'openqasm-theme-dark' : 'openqasm-theme-light');
-    }
+        updateMonacoEditorTheme(isDark);
+        // Update circuit diagram colors to match new theme
+        updateCircuitDiagram();
+    } 
     
     // Update circuit diagram container (same theme as code editor)
     const circuitContainer = circuitDiagram?.parentElement;
@@ -1762,6 +1832,13 @@ function applyTheme(theme) {
         saveBtn.className = saveBtn.className.replace(/bg-gray-800|bg-gray-200/g, isDark ? 'bg-gray-800' : 'bg-gray-200');
         saveBtn.className = saveBtn.className.replace(/hover:bg-gray-700|hover:bg-gray-300/g, isDark ? 'hover:bg-gray-700' : 'hover:bg-gray-300');
         saveBtn.className = saveBtn.className.replace(/text-gray-100|text-gray-900/g, isDark ? 'text-gray-100' : 'text-gray-900');
+    }
+    
+    const downloadCircuitBtn = document.getElementById('downloadCircuitBtn');
+    if (downloadCircuitBtn) {
+        downloadCircuitBtn.className = downloadCircuitBtn.className.replace(/bg-gray-800|bg-gray-200/g, isDark ? 'bg-gray-800' : 'bg-gray-200');
+        downloadCircuitBtn.className = downloadCircuitBtn.className.replace(/hover:bg-gray-700|hover:bg-gray-300/g, isDark ? 'hover:bg-gray-700' : 'hover:bg-gray-300');
+        downloadCircuitBtn.className = downloadCircuitBtn.className.replace(/text-gray-100|text-gray-900/g, isDark ? 'text-gray-100' : 'text-gray-900');
     }
     
     const themeBtn = document.getElementById('themeToggle');
@@ -1868,6 +1945,12 @@ function applyTheme(theme) {
     const runBtnIcon = document.getElementById('runBtnIcon');
     if (runBtnIcon) {
         runBtnIcon.setAttribute('stroke', isDark ? '#ffffff' : '#000000');
+    }
+    
+    // Update download circuit button icon
+    const downloadCircuitBtnIcon = document.getElementById('downloadCircuitBtnIcon');
+    if (downloadCircuitBtnIcon) {
+        downloadCircuitBtnIcon.setAttribute('stroke', isDark ? '#ffffff' : '#000000');
     }
     
     // Update theme button icon

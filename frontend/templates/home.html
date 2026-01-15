@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quantum Programming IDE - Home</title>
+    <script src="{{ url_for('static', filename='js/tailwind.min.js') }}"></script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+</head>
+
+<body class="bg-[#0f0f0f] text-gray-100 min-h-screen" data-theme="dark">
+    <!-- Top Bar -->
+    <div id="topBar" class="bg-[#1a1a1a] border-b border-gray-800 px-2 py-2">
+        <div class="flex items-center justify-between">
+            <div class="flex items-center space-x-4">
+                <div id="logoIcon" class="text-2xl font-bold text-green-400">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="1"></circle>
+                        <path d="M20.2 20.2c2.04-2.03.02-7.36-4.5-11.9-4.54-4.52-9.87-6.54-11.9-4.5-2.04 2.03-.02 7.36 4.5 11.9 4.54 4.52 9.87 6.54 11.9 4.5Z"></path>
+                        <path d="M15.7 15.7c4.52-4.54 6.54-9.87 4.5-11.9-2.03-2.04-7.36-.02-11.9 4.5-4.52 4.54-6.54 9.87-4.5 11.9 2.03 2.04 7.36.02 11.9-4.5Z"></path>
+                    </svg>
+                </div>
+                <h1 class="text-xl font-semibold">Quantum Programming IDE</h1>
+            </div>
+            <div class="flex items-center space-x-4">
+                <button id="themeToggle"
+                    class="px-2 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg transition flex items-center space-x-2">
+                    <span id="themeIcon">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"></path>
+                        </svg>
+                    </span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="container mx-auto px-4 py-8 max-w-6xl">
+        <!-- Hero Section -->
+        <div class="text-center mb-12">
+            <h2 class="text-4xl font-bold mb-4 text-green-400">Welcome to Quantum Programming IDE</h2>
+            <p class="text-xl text-gray-400 mb-8">A powerful integrated development environment for OpenQASM 3</p>
+            
+            <div class="flex justify-center gap-4">
+                <a href="/compiler" class="px-6 py-3 bg-green-600 hover:bg-green-700 rounded-lg font-semibold transition text-white">
+                    Open Compiler
+                </a>
+            </div>
+        </div>
+
+        <!-- Features Section -->
+        <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-6 mb-12">
+            <div class="bg-[#1a1a1a] border border-gray-800 rounded-lg p-6">
+                <div class="text-green-400 text-3xl mb-4">⚛️</div>
+                <h3 class="text-xl font-semibold mb-2">OpenQASM 3 Support</h3>
+                <p class="text-gray-400">Full support for OpenQASM 3 syntax with real-time syntax highlighting and validation.</p>
+            </div>
+
+            <div class="bg-[#1a1a1a] border border-gray-800 rounded-lg p-6">
+                <div class="text-green-400 text-3xl mb-4">🔬</div>
+                <h3 class="text-xl font-semibold mb-2">Circuit Simulation</h3>
+                <p class="text-gray-400">Run quantum circuit simulations and visualize results with histograms and probability distributions.</p>
+            </div>
+
+            <div class="bg-[#1a1a1a] border border-gray-800 rounded-lg p-6">
+                <div class="text-green-400 text-3xl mb-4">📊</div>
+                <h3 class="text-xl font-semibold mb-2">Circuit Diagrams</h3>
+                <p class="text-gray-400">Real-time circuit diagram generation with syntax-based color coding for gates and operations.</p>
+            </div>
+
+            <div class="bg-[#1a1a1a] border border-gray-800 rounded-lg p-6">
+                <div class="text-green-400 text-3xl mb-4">💾</div>
+                <h3 class="text-xl font-semibold mb-2">Save & Load</h3>
+                <p class="text-gray-400">Save your quantum circuits and load them later for continued development.</p>
+            </div>
+
+            <div class="bg-[#1a1a1a] border border-gray-800 rounded-lg p-6">
+                <div class="text-green-400 text-3xl mb-4">🎨</div>
+                <h3 class="text-xl font-semibold mb-2">Theme Support</h3>
+                <p class="text-gray-400">Switch between light and dark themes for comfortable coding in any environment.</p>
+            </div>
+
+            <div class="bg-[#1a1a1a] border border-gray-800 rounded-lg p-6">
+                <div class="text-green-400 text-3xl mb-4">📥</div>
+                <h3 class="text-xl font-semibold mb-2">Export Diagrams</h3>
+                <p class="text-gray-400">Download circuit diagrams as PNG files for documentation and presentations.</p>
+            </div>
+        </div>
+
+        <!-- Quick Start Section -->
+        <div class="bg-[#1a1a1a] border border-gray-800 rounded-lg p-8">
+            <h3 class="text-2xl font-semibold mb-4">Quick Start</h3>
+            <div class="space-y-4 text-gray-300">
+                <p>1. Click "Open Compiler" to start coding</p>
+                <p>2. Write your OpenQASM 3 code in the editor</p>
+                <p>3. View the real-time circuit diagram</p>
+                <p>4. Run simulations to see quantum state results</p>
+                <p>5. Save your circuits for future use</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Simple theme toggle for home page
+        const themeToggle = document.getElementById('themeToggle');
+        const themeIcon = document.getElementById('themeIcon');
+        
+        function loadTheme() {
+            const theme = localStorage.getItem('theme') || 'dark';
+            document.body.setAttribute('data-theme', theme);
+            updateThemeIcon(theme === 'dark');
+        }
+        
+        function updateThemeIcon(isDark) {
+            if (isDark) {
+                themeIcon.innerHTML = `
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"></path>
+                    </svg>
+                `;
+            } else {
+                themeIcon.innerHTML = `
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="4"></circle>
+                        <path d="M12 2v2"></path>
+                        <path d="M12 20v2"></path>
+                        <path d="m4.93 4.93 1.41 1.41"></path>
+                        <path d="m17.66 17.66 1.41 1.41"></path>
+                        <path d="M2 12h2"></path>
+                        <path d="M20 12h2"></path>
+                        <path d="m6.34 17.66-1.41 1.41"></path>
+                        <path d="m19.07 4.93-1.41 1.41"></path>
+                    </svg>
+                `;
+            }
+        }
+        
+        if (themeToggle) {
+            themeToggle.addEventListener('click', () => {
+                const currentTheme = localStorage.getItem('theme') || 'dark';
+                const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+                localStorage.setItem('theme', newTheme);
+                loadTheme();
+            });
+        }
+        
+        loadTheme();
+    </script>
+</body>
+
+</html>

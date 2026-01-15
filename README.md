@@ -6,7 +6,13 @@ A comprehensive web-based platform for compiling, simulating, and visualizing qu
 
 This project implements a full-stack quantum computing development environment that combines the OpenQASM 3 specification with Qiskit's simulation capabilities. The platform features a modern, responsive web interface that enables real-time circuit visualization, interactive simulation, and comprehensive result analysis.
 
-![Quantum Programming IDE Interface](resources/2026-01-15_03-06-03.png)
+### Screenshots
+
+**Home Page:**
+![Quantum Programming IDE Home Page](resources/home.png)
+
+**Compiler Page:**
+![Quantum Programming IDE Compiler](resources/compiler.png)
 
 ### Key Features
 
@@ -53,7 +59,8 @@ Quantum_Programming_IDE/
 │
 ├── frontend/
 │   ├── templates/
-│   │   └── index.html         # Main application interface
+│   │   ├── home.html          # Home page interface
+│   │   └── compiler.html      # Compiler application interface
 │   └── static/
 │       ├── css/
 │       │   └── styles.css     # Custom styling and theme definitions
@@ -252,11 +259,15 @@ The platform provides comprehensive file management capabilities:
 
 #### `GET /`
 
-Serves the main application interface.
+Redirects to the home page (`/home`).
+
+#### `GET /home`
+
+Serves the home page with feature overview and navigation.
 
 #### `GET /compiler`
 
-Alias for the main interface.
+Serves the compiler interface with code editor, circuit diagram, and simulation results.
 
 #### `POST /compile`
 
@@ -586,7 +597,7 @@ If you use this software in your research or academic work, please cite:
   author = {Sayid Bajrai Abdul Nasir},
   year = {2026},
   url = {https://github.com/SayidBajrai/Quantum_Programming_IDE},
-  version = {1.0.0}
+  version = {1.0.3}
 }
 ```
 
@@ -659,6 +670,25 @@ For questions, technical issues, collaboration inquiries, or research partnershi
 
 ## Version History
 
+- **v1.0.3** (2026-01-17): Multi-page navigation and enhanced circuit diagram features
+
+  - Added home page with feature overview and navigation
+  - Separated compiler interface into dedicated page
+  - Enhanced syntax highlighting with function-like gates (measure, reset) in distinct colors
+  - Circuit diagram color coding matching Monaco editor theme
+  - PNG circuit diagram download using matplotlib backend
+  - Improved route structure with `/home` and `/compiler` endpoints
+
+- **v1.0.2** (2026-01-16): Advanced syntax highlighting and circuit visualization
+
+  - Enhanced OpenQASM 3 syntax highlighting with color-coded gate types
+  - Function-like gates (h, cx, ry) highlighted in yellow-green
+  - Measure and reset gates highlighted in light green
+  - User-defined functions highlighted in yellow
+  - Keywords (qubit, bit, include, let, gate) in dark blue
+  - Control flow keywords (break, continue, return) in purple
+  - Circuit diagram colors synchronized with editor theme
+
 - **v1.0.1** (2026-01-15): Enhanced user interface and code editor features
 
   - Monaco Editor integration with syntax highlighting
@@ -676,5 +706,5 @@ For questions, technical issues, collaboration inquiries, or research partnershi
 
 ---
 
-**Version**: 1.0.1
-**Last Updated**: 2026-01-15
+**Version**: 1.0.3
+**Last Updated**: 2026-01-17
