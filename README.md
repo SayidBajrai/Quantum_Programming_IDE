@@ -601,6 +601,21 @@ If you use this software in your research or academic work, please cite:
 }
 ```
 
+## Acknowledgments
+
+The development of this platform was made possible by the following open-source projects and communities:
+
+- **Qiskit Development Team**: For providing the comprehensive quantum simulation framework and tools
+- **OpenQASM 3 Specification Contributors**: For establishing the OpenQASM 3 standard and parser implementations
+- **Open Source Community**: For the extensive ecosystem of tools and libraries that form the foundation of this project
+
+## Contact and Support
+
+For questions, technical issues, collaboration inquiries, or research partnerships, please contact:
+
+- **Issues**: https://github.com/SayidBajrai/Quantum_Programming_IDE
+- **Research Inquiries**: sayidbajrai@gmail.com
+
 ## References
 
 1. **Cross, A. W., Bishop, L. S., Smolin, J. A., & Gambetta, J. M.**  
@@ -653,24 +668,9 @@ If you use this software in your research or academic work, please cite:
     arXiv preprint arXiv:2304.15000, 2023.  
     [https://arxiv.org/abs/2304.15000](https://arxiv.org/abs/2304.15000)
 
-## Acknowledgments
-
-The development of this platform was made possible by the following open-source projects and communities:
-
-- **Qiskit Development Team**: For providing the comprehensive quantum simulation framework and tools
-- **OpenQASM 3 Specification Contributors**: For establishing the OpenQASM 3 standard and parser implementations
-- **Open Source Community**: For the extensive ecosystem of tools and libraries that form the foundation of this project
-
-## Contact and Support
-
-For questions, technical issues, collaboration inquiries, or research partnerships, please contact:
-
-- **Issues**: https://github.com/SayidBajrai/Quantum_Programming_IDE
-- **Research Inquiries**: sayidbajrai@gmail.com
-
 ## Version History
 
-- **v1.0.3** (2026-01-17): Multi-page navigation and enhanced circuit diagram features
+- **v1.0.3** (2026-01-16): Multi-page navigation and enhanced circuit diagram features
 
   - Added home page with feature overview and navigation
   - Separated compiler interface into dedicated page
@@ -707,4 +707,4 @@ For questions, technical issues, collaboration inquiries, or research partnershi
 ---
 
 **Version**: 1.0.3
-**Last Updated**: 2026-01-17
+**Last Updated**: 2026-01-16
