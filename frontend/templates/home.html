@@ -47,6 +47,9 @@
                 <a href="/compiler" class="px-6 py-3 bg-green-600 hover:bg-green-700 rounded-lg font-semibold transition text-white">
                     Open Compiler
                 </a>
+                <a href="/circuit" class="px-6 py-3 bg-green-600 hover:bg-green-700 rounded-lg font-semibold transition text-white">
+                    Circuit Builder
+                </a>
             </div>
         </div>
 
@@ -56,6 +59,12 @@
                 <div class="text-green-400 text-3xl mb-4">⚛️</div>
                 <h3 class="text-xl font-semibold mb-2">OpenQASM 3 Support</h3>
                 <p class="text-gray-400">Full support for OpenQASM 3 syntax with real-time syntax highlighting and validation.</p>
+            </div>
+
+            <div class="bg-[#1a1a1a] border border-gray-800 rounded-lg p-6">
+                <div class="text-green-400 text-3xl mb-4">🖱️</div>
+                <h3 class="text-xl font-semibold mb-2">Drag & Drop Circuit Builder</h3>
+                <p class="text-gray-400">Build quantum circuits visually by dragging gates from the palette. Real-time QASM code generation as you design.</p>
             </div>
 
             <div class="bg-[#1a1a1a] border border-gray-800 rounded-lg p-6">
@@ -81,23 +90,28 @@
                 <h3 class="text-xl font-semibold mb-2">Theme Support</h3>
                 <p class="text-gray-400">Switch between light and dark themes for comfortable coding in any environment.</p>
             </div>
-
-            <div class="bg-[#1a1a1a] border border-gray-800 rounded-lg p-6">
-                <div class="text-green-400 text-3xl mb-4">📥</div>
-                <h3 class="text-xl font-semibold mb-2">Export Diagrams</h3>
-                <p class="text-gray-400">Download circuit diagrams as PNG files for documentation and presentations.</p>
-            </div>
         </div>
 
         <!-- Quick Start Section -->
-        <div class="bg-[#1a1a1a] border border-gray-800 rounded-lg p-8">
+        <div class="bg-[#1a1a1a] border border-gray-800 rounded-lg p-8 mb-8">
             <h3 class="text-2xl font-semibold mb-4">Quick Start</h3>
             <div class="space-y-4 text-gray-300">
-                <p>1. Click "Open Compiler" to start coding</p>
-                <p>2. Write your OpenQASM 3 code in the editor</p>
-                <p>3. View the real-time circuit diagram</p>
-                <p>4. Run simulations to see quantum state results</p>
-                <p>5. Save your circuits for future use</p>
+                <div>
+                    <p class="font-semibold text-green-400 mb-2">Option 1: Code Editor</p>
+                    <p>1. Click "Open Compiler" to start coding</p>
+                    <p>2. Write your OpenQASM 3 code in the editor</p>
+                    <p>3. View the real-time circuit diagram</p>
+                    <p>4. Run simulations to see quantum state results</p>
+                    <p>5. Save your circuits for future use</p>
+                </div>
+                <div class="mt-6">
+                    <p class="font-semibold text-green-400 mb-2">Option 2: Visual Circuit Builder</p>
+                    <p>1. Click "Circuit Builder" to open the visual editor</p>
+                    <p>2. Drag gates from the palette onto the circuit canvas</p>
+                    <p>3. Add or remove qubits as needed</p>
+                    <p>4. Watch QASM code generate in real-time</p>
+                    <p>5. Run simulations or save your circuit</p>
+                </div>
             </div>
         </div>
     </div>

@@ -56,6 +56,11 @@ def compiler():
     """Serve the compiler page"""
     return render_template('compiler.html')
 
+@app.route('/circuit')
+def circuit():
+    """Serve the circuit builder page"""
+    return render_template('circuit.html')
+
 @app.route('/circuit-diagram', methods=['POST'])
 def circuit_diagram():
     """

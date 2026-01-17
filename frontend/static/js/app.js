@@ -242,7 +242,12 @@ document.addEventListener('DOMContentLoaded', () => {
     loadSidebarState();
     loadResizeState();
     loadSavedState();
-    initializeMonacoEditor(); // Initialize Monaco first
+    
+    // Only initialize Monaco if not on circuit builder page (circuit builder has its own initialization)
+    if (!document.getElementById('circuitBuilder')) {
+        initializeMonacoEditor(); // Initialize Monaco first
+    }
+    
     setupEventListeners();
     
     // Handle window resize

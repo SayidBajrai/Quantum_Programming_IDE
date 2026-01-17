@@ -17,6 +17,7 @@ This project implements a full-stack quantum computing development environment t
 ### Key Features
 
 - **OpenQASM 3 Compliance**: Full support for OpenQASM 3 syntax including qubit/bit registers, gate operations, measurements, and control flow constructs
+- **Visual Circuit Builder**: Drag-and-drop interface for building quantum circuits visually with real-time QASM code generation
 - **Quantum Circuit Simulation**: High-performance local simulation using Qiskit's AerSimulator with configurable shot counts
 - **Real-time Visualization**: Dynamic circuit diagram generation with SVG rendering and text-based fallback
 - **Interactive Results Analysis**: Statistical visualization through histograms and detailed measurement count tables
@@ -60,12 +61,14 @@ Quantum_Programming_IDE/
 ├── frontend/
 │   ├── templates/
 │   │   ├── home.html          # Home page interface
-│   │   └── compiler.html      # Compiler application interface
+│   │   ├── compiler.html     # Compiler application interface
+│   │   └── circuit.html      # Circuit builder interface
 │   └── static/
 │       ├── css/
 │       │   └── styles.css     # Custom styling and theme definitions
 │       ├── js/
 │       │   ├── app.js         # Frontend application logic
+│       │   ├── circuit-builder.js # Circuit builder drag-and-drop functionality
 │       │   └── tailwind.min.js # Local Tailwind CSS (offline support)
 │       └── Saved/              # User-saved quantum circuit files
 │
@@ -186,11 +189,24 @@ The application will start and be available at `http://127.0.0.1:5010`. User-sav
 
 ### Basic Workflow
 
-1. **Access the Interface**: Navigate to `http://127.0.0.1:5010` in your web browser
+#### Using the Code Editor
+
+1. **Access the Compiler**: Navigate to `http://127.0.0.1:5010/compiler` in your web browser
 2. **Write OpenQASM 3 Code**: Enter your quantum circuit definition in the code editor
 3. **Configure Simulation**: Set the number of measurement shots (default: 1024)
 4. **Execute Simulation**: Click "Run Simulation" or press `Ctrl+Enter`
 5. **Analyze Results**: Review the histogram visualization and measurement statistics
+
+#### Using the Circuit Builder
+
+1. **Access the Circuit Builder**: Navigate to `http://127.0.0.1:5010/circuit` in your web browser
+2. **Add Qubits**: Use the "+ Qubit" button to add qubits to your circuit
+3. **Drag Gates**: Drag gates from the palette on the left sidebar onto the circuit canvas
+4. **Position Gates**: Drop gates on qubit lines at desired column positions
+5. **Move Gates**: Click and drag existing gates to reposition them
+6. **View Generated Code**: Watch the QASM code update in real-time on the right side
+7. **Run Simulation**: Click "Run" to execute the circuit and view results
+8. **Save Circuit**: Save the generated QASM code for future use
 
 ### OpenQASM 3 Syntax Support
 
@@ -268,6 +284,10 @@ Serves the home page with feature overview and navigation.
 #### `GET /compiler`
 
 Serves the compiler interface with code editor, circuit diagram, and simulation results.
+
+#### `GET /circuit`
+
+Serves the circuit builder interface with drag-and-drop gate palette, visual circuit canvas, and real-time QASM code generation.
 
 #### `POST /compile`
 
@@ -533,10 +553,11 @@ This platform is designed to support various research and educational activities
 The current implementation has several limitations that reflect the complexity of full OpenQASM 3 support:
 
 - **Conditional Statements**: `if/else` conditional blocks are identified but not fully executed during static circuit building, as they depend on runtime classical register values
-- **Gate Set**: Limited to standard gates (H, X, Y, Z, S, T, CX, CY, CZ, CH, SWAP, CCX, CSWAP) compared to the full OpenQASM 3 specification
-- **Parameterized Gates**: No support for parameterized gates or gate definitions with parameters
+- **Gate Set**: Limited to standard gates (H, X, Y, Z, S, T, RX, RY, RZ, CX, CY, CZ, CH, SWAP, CCX, CSWAP, Measure) compared to the full OpenQASM 3 specification
+- **Parameterized Gates**: Basic support for parameterized gates (RX, RY, RZ) in circuit builder, but limited parameter editing after placement
 - **Classical Computation**: Limited classical computation support; classical operations are primarily used for measurement storage
 - **Hardware Integration**: Local simulation only; no direct connection to quantum hardware backends
+- **Circuit Builder**: Multi-qubit gates automatically select adjacent qubits as targets; manual target selection not yet implemented
 
 ### Potential Enhancements
 
@@ -670,6 +691,18 @@ For questions, technical issues, collaboration inquiries, or research partnershi
 
 ## Version History
 
+- **v1.0.4** (2026-01-16): Visual Circuit Builder with drag-and-drop interface
+
+  - Added `/circuit` route for visual circuit builder page
+  - Drag-and-drop gate palette with single-qubit and multi-qubit gates
+  - Visual circuit canvas with SVG rendering
+  - Real-time QASM code generation from circuit structure
+  - Gate repositioning with click-and-drag functionality
+  - Parameter preservation when moving gates
+  - Qubit management (add/remove qubits)
+  - Non-editable code editor showing generated QASM code
+  - Circuit builder navigation links on home and compiler pages
+
 - **v1.0.3** (2026-01-16): Multi-page navigation and enhanced circuit diagram features
 
   - Added home page with feature overview and navigation
@@ -706,5 +739,5 @@ For questions, technical issues, collaboration inquiries, or research partnershi
 
 ---
 
-**Version**: 1.0.3
+**Version**: 1.0.4
 **Last Updated**: 2026-01-16
