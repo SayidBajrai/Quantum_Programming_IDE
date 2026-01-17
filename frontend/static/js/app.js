@@ -32,13 +32,36 @@ const codeEditorSection = document.getElementById('codeEditorSection');
 const circuitDiagramSection = document.getElementById('circuitDiagramSection');
 const savedToggle = document.getElementById('savedToggle');
 const savedExamples = document.getElementById('savedExamples');
+const codeFormatSelect = document.getElementById('codeFormatSelect');
+
+// Global variable to store Monaco theme configuration
+let monacoThemeConfig = null;
+
+// Load Monaco theme configuration from config.json
+async function loadMonacoThemeConfig() {
+    try {
+        const response = await fetch('/config.json');
+        if (!response.ok) {
+            throw new Error(`Failed to load config.json: ${response.status}`);
+        }
+        const config = await response.json();
+        monacoThemeConfig = config.monacoThemes;
+        console.log('Monaco theme config loaded successfully');
+        return monacoThemeConfig;
+    } catch (error) {
+        console.error('Error loading Monaco theme config:', error);
+        // Return null to indicate failure
+        return null;
+    }
+}
 
 // Load saved examples from files
 async function loadSavedExample(exampleName) {
     try {
         // Handle both filename with and without extension
         let filename = exampleName;
-        if (!filename.endsWith('.qasm') && !filename.endsWith('.qasm3')) {
+        if (!filename.endsWith('.qasm') && !filename.endsWith('.qasm3') && !filename.endsWith('.qta')) {
+            // Try to determine extension from filename or default to .qasm
             filename = `${exampleName}.qasm`;
         }
         const response = await fetch(`/static/Saved/${filename}`);
@@ -64,6 +87,9 @@ function initializeMonacoEditor() {
     require(['vs/editor/editor.main'], function () {
         // Register OpenQASM 3 language
         monaco.languages.register({ id: 'openqasm3' });
+        
+        // Register Quanta language
+        monaco.languages.register({ id: 'quanta' });
         
         // Define OpenQASM 3 language tokens
         monaco.languages.setMonarchTokensProvider('openqasm3', {
@@ -127,17 +153,66 @@ function initializeMonacoEditor() {
             }
         });
         
+        // Define Quanta language tokens (similar structure to OpenQASM 3)
+        monaco.languages.setMonarchTokensProvider('quanta', {
+            tokenizer: {
+                root: [
+                    // Comments
+                    [/\/\/.*$/, 'comment'],
+                    [/\/\*[\s\S]*?\*\//, 'comment'],
+                    
+                    // Control flow keywords
+                    [/\b(if|else|for|while|break|continue|return)\b/, 'controlflow'],
+                    [/else\s+if/, 'controlflow'],
+                    
+                    // Quantum gates and operations (similar to OpenQASM 3)
+                    [/\b(h|x|y|z|s|cx|cy|cz|ch|swap|ccx|cswap|u|p|rx|ry|rz|r|crx|cry|crz|cu|cp|phase|cphase|id|tdg|sdg)\b/, 'function-like'],
+                    [/\b(measure|reset)\b/, 'function-like-2'],
+                    
+                    // Keywords
+                    [/\b(qubit|bit|let|gate|def|const|input|float|int)\b/, 'keyword'],
+                    
+                    // Operators
+                    [/[+\-*/=<>!&|]+/, 'operator'],
+                    [/[(),;\[\]{}]/, 'delimiter'],
+                    
+                    // Numbers
+                    [/\d+\.?\d*/, 'number'],
+                    
+                    // Strings
+                    [/["'][^"']*["']/, 'string'],
+                    
+                    // Identifiers
+                    [/[a-zA-Z_][a-zA-Z0-9_]*/, 'identifier'],
+                    
+                    // Whitespace
+                    [/\s+/, 'white']
+                ]
+            }
+        });
+        
         // Define theme colors
         const currentTheme = localStorage.getItem('theme') || 'dark';
         const isDark = currentTheme === 'dark';
         
         updateMonacoEditorTheme(isDark);
         
+        // Get initial language from selector (if available) or localStorage
+        let savedLanguage = 'openqasm3';
+        if (codeFormatSelect) {
+            savedLanguage = codeFormatSelect.value || localStorage.getItem('codeFormat') || 'openqasm3';
+        } else {
+            savedLanguage = localStorage.getItem('codeFormat') || 'openqasm3';
+        }
+        const initialLanguage = savedLanguage === 'quanta' ? 'quanta' : 'openqasm3';
+        const initialValue = initialLanguage === 'quanta' ? '// Quanta code\n' : 'OPENQASM 3;\n';
+        const initialTheme = initialLanguage === 'quanta' ? 'quanta-theme' : 'openqasm-theme';
+        
         // Create editor instance
         monacoEditor = monaco.editor.create(codeEditorContainer, {
-            value: 'OPENQASM 3;\n',
-            language: 'openqasm3',
-            theme: 'openqasm-theme',
+            value: initialValue,
+            language: initialLanguage,
+            theme: initialTheme,
             fontSize: 14,
             fontFamily: 'Consolas, "Courier New", monospace',
             minimap: { enabled: false },
@@ -194,8 +269,11 @@ async function checkSyntaxErrors() {
     if (!monacoEditor) return;
     
     const code = monacoEditor.getValue();
+    const language = codeFormatSelect ? codeFormatSelect.value : 'openqasm3';
+    const langId = language === 'quanta' ? 'quanta' : 'openqasm3';
+    
     if (!code.trim()) {
-        monaco.editor.setModelMarkers(monacoEditor.getModel(), 'openqasm3', []);
+        monaco.editor.setModelMarkers(monacoEditor.getModel(), langId, []);
         return;
     }
     
@@ -206,7 +284,10 @@ async function checkSyntaxErrors() {
             headers: {
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify({ code: code })
+            body: JSON.stringify({ 
+                code: code,
+                language: language
+            })
         });
         
         const data = await response.json();
@@ -225,10 +306,10 @@ async function checkSyntaxErrors() {
                 message: data.error
             }];
             
-            monaco.editor.setModelMarkers(monacoEditor.getModel(), 'openqasm3', markers);
+            monaco.editor.setModelMarkers(monacoEditor.getModel(), langId, markers);
         } else {
             // Clear errors if valid
-            monaco.editor.setModelMarkers(monacoEditor.getModel(), 'openqasm3', []);
+            monaco.editor.setModelMarkers(monacoEditor.getModel(), langId, []);
         }
     } catch (error) {
         console.error('Error checking syntax:', error);
@@ -245,7 +326,13 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // Only initialize Monaco if not on circuit builder page (circuit builder has its own initialization)
     if (!document.getElementById('circuitBuilder')) {
-        initializeMonacoEditor(); // Initialize Monaco first
+        // Load Monaco theme config first, then initialize Monaco editor
+        loadMonacoThemeConfig().then(() => {
+            initializeMonacoEditor();
+        }).catch((error) => {
+            console.error('Failed to load Monaco theme config, using defaults:', error);
+            initializeMonacoEditor(); // Initialize with defaults if config fails to load
+        });
     }
     
     setupEventListeners();
@@ -487,6 +574,30 @@ async function loadSavedFiles() {
                 button.addEventListener('click', async () => {
                     const code = await loadSavedExample(file.filename);
                     if (code && monacoEditor) {
+                        // Detect file extension and set language selector accordingly
+                        const filename = file.filename.toLowerCase();
+                        let detectedLanguage = 'openqasm3';
+                        let detectedTheme = 'openqasm-theme';
+                        
+                        if (filename.endsWith('.qta')) {
+                            detectedLanguage = 'quanta';
+                            detectedTheme = 'quanta-theme';
+                        } else if (filename.endsWith('.qasm') || filename.endsWith('.qasm3')) {
+                            detectedLanguage = 'openqasm3';
+                            detectedTheme = 'openqasm-theme';
+                        }
+                        
+                        // Update language selector if it exists
+                        if (codeFormatSelect) {
+                            codeFormatSelect.value = detectedLanguage;
+                            localStorage.setItem('codeFormat', detectedLanguage);
+                        }
+                        
+                        // Update Monaco editor language and theme
+                        monaco.editor.setModelLanguage(monacoEditor.getModel(), detectedLanguage);
+                        monacoEditor.updateOptions({ theme: detectedTheme });
+                        
+                        // Set the code
                         monacoEditor.setValue(code);
                         updateCircuitDiagram();
                     }
@@ -507,7 +618,10 @@ async function loadSavedFiles() {
 
 async function editFileName(filename, nameElement) {
     const currentName = nameElement.textContent.trim();
-    const newName = prompt('Enter new filename (without .qasm extension):', currentName);
+    // Detect file extension to show appropriate prompt
+    const isQta = filename.toLowerCase().endsWith('.qta');
+    const extensionHint = isQta ? 'without .qta extension' : 'without .qasm extension';
+    const newName = prompt(`Enter new filename (${extensionHint}):`, currentName);
     
     if (!newName || !newName.trim() || newName.trim() === currentName) {
         return;
@@ -598,6 +712,36 @@ function setupEventListeners() {
     }
     themeToggle.addEventListener('click', toggleTheme);
     
+    // Code format selector
+    if (codeFormatSelect) {
+        // Load saved format preference
+        const savedFormat = localStorage.getItem('codeFormat') || 'openqasm3';
+        codeFormatSelect.value = savedFormat;
+        
+        // Set initial Monaco editor language if editor is already initialized
+        if (monacoEditor) {
+            const initialLanguage = savedFormat === 'quanta' ? 'quanta' : 'openqasm3';
+            monaco.editor.setModelLanguage(monacoEditor.getModel(), initialLanguage);
+        }
+        
+        codeFormatSelect.addEventListener('change', (e) => {
+            const selectedFormat = e.target.value;
+            localStorage.setItem('codeFormat', selectedFormat);
+            
+            // Switch Monaco editor language
+            if (monacoEditor) {
+                const newLanguage = selectedFormat === 'quanta' ? 'quanta' : 'openqasm3';
+                const newTheme = newLanguage === 'quanta' ? 'quanta-theme' : 'openqasm-theme';
+                
+                monaco.editor.setModelLanguage(monacoEditor.getModel(), newLanguage);
+                monacoEditor.updateOptions({ theme: newTheme });
+                
+                // Update circuit diagram with new language
+                updateCircuitDiagram();
+            }
+        });
+    }
+    
     // Sidebar toggle
     if (sidebarToggleDesktop) {
         sidebarToggleDesktop.addEventListener('click', toggleSidebar);
@@ -670,17 +814,40 @@ function setupEventListeners() {
         const files = e.dataTransfer.files;
         if (files.length > 0) {
             const file = files[0];
-            if (file.name.endsWith('.qasm') || file.name.endsWith('.qasm3')) {
+            const filename = file.name.toLowerCase();
+            if (filename.endsWith('.qasm') || filename.endsWith('.qasm3') || filename.endsWith('.qta')) {
                 const reader = new FileReader();
                 reader.onload = (event) => {
                     if (monacoEditor) {
+                        // Detect file extension and set language selector accordingly
+                        let detectedLanguage = 'openqasm3';
+                        let detectedTheme = 'openqasm-theme';
+                        
+                        if (filename.endsWith('.qta')) {
+                            detectedLanguage = 'quanta';
+                            detectedTheme = 'quanta-theme';
+                        } else {
+                            detectedLanguage = 'openqasm3';
+                            detectedTheme = 'openqasm-theme';
+                        }
+                        
+                        // Update language selector if it exists
+                        if (codeFormatSelect) {
+                            codeFormatSelect.value = detectedLanguage;
+                            localStorage.setItem('codeFormat', detectedLanguage);
+                        }
+                        
+                        // Update Monaco editor language and theme
+                        monaco.editor.setModelLanguage(monacoEditor.getModel(), detectedLanguage);
+                        monacoEditor.updateOptions({ theme: detectedTheme });
+                        
                         monacoEditor.setValue(event.target.result);
                     }
                     updateCircuitDiagram();
                 };
                 reader.readAsText(file);
             } else {
-                alert('Please drop a .qasm or .qasm3 file');
+                alert('Please drop a .qasm, .qasm3, or .qta file');
             }
         }
     });
@@ -880,13 +1047,19 @@ function loadSidebarState() {
 async function saveFile() {
     const code = monacoEditor ? monacoEditor.getValue().trim() : '';
     
+    // Get current language from selector
+    const language = codeFormatSelect ? codeFormatSelect.value : 'openqasm3';
+    const langName = language === 'quanta' ? 'Quanta' : 'OpenQASM 3';
+    const fileExtension = language === 'quanta' ? '.qta' : '.qasm';
+    
     if (!code) {
-        alert('Please enter some OpenQASM 3 code to save');
+        alert(`Please enter some ${langName} code to save`);
         return;
     }
     
-    // Prompt for filename
-    const filename = prompt('Enter a filename for your circuit (without .qasm extension):');
+    // Prompt for filename with appropriate extension hint
+    const extensionHint = language === 'quanta' ? 'without .qta extension' : 'without .qasm extension';
+    const filename = prompt(`Enter a filename for your circuit (${extensionHint}):`);
     
     if (!filename || !filename.trim()) {
         return; // User cancelled or entered empty name
@@ -907,7 +1080,7 @@ async function saveFile() {
         const checkData = await checkResponse.json();
         
         if (checkData.exists) {
-            const overwrite = confirm(`File "${finalFilename}.qasm" already exists. Do you want to overwrite it?`);
+            const overwrite = confirm(`File "${finalFilename}${fileExtension}" already exists. Do you want to overwrite it?`);
             if (!overwrite) {
                 return; // User cancelled overwrite
             }
@@ -930,7 +1103,8 @@ async function saveFile() {
             },
             body: JSON.stringify({
                 filename: finalFilename,
-                code: code
+                code: code,
+                language: language  // Pass language so backend can set correct extension
             })
         });
         
@@ -965,8 +1139,12 @@ async function runSimulation() {
     const code = monacoEditor ? monacoEditor.getValue().trim() : '';
     const shots = parseInt(shotsInput.value) || 1024;
     
+    // Get current language from selector
+    const language = codeFormatSelect ? codeFormatSelect.value : 'openqasm3';
+    
     if (!code) {
-        showError('Please enter some OpenQASM 3 code');
+        const langName = language === 'quanta' ? 'Quanta' : 'OpenQASM 3';
+        showError(`Please enter some ${langName} code`);
         return;
     }
     
@@ -985,7 +1163,8 @@ async function runSimulation() {
             },
             body: JSON.stringify({
                 code: code,
-                shots: shots
+                shots: shots,
+                language: language
             })
         });
         
@@ -1149,6 +1328,9 @@ async function updateCircuitDiagram() {
     
     const code = monacoEditor ? monacoEditor.getValue().trim() : '';
     
+    // Get current language from selector
+    const language = codeFormatSelect ? codeFormatSelect.value : 'openqasm3';
+    
     // Get current theme for text colors
     const currentTheme = localStorage.getItem('theme') || 'dark';
     const isDark = currentTheme === 'dark';
@@ -1176,7 +1358,8 @@ async function updateCircuitDiagram() {
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify({
-                code: code
+                code: code,
+                language: language
             })
         });
         
@@ -1223,8 +1406,11 @@ async function downloadCircuitDiagram() {
     if (!monacoEditor) return;
     
     const code = monacoEditor.getValue().trim();
+    const language = codeFormatSelect ? codeFormatSelect.value : 'openqasm3';
+    
     if (!code) {
-        alert('Please enter some OpenQASM 3 code to download');
+        const langName = language === 'quanta' ? 'Quanta' : 'OpenQASM 3';
+        alert(`Please enter some ${langName} code to download`);
         return;
     }
     
@@ -1241,7 +1427,10 @@ async function downloadCircuitDiagram() {
             headers: {
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify({ code: code })
+            body: JSON.stringify({ 
+                code: code,
+                language: language
+            })
         });
         
         if (!response.ok) {
@@ -1627,33 +1816,75 @@ const themeConfig = {
 
 
 function updateMonacoEditorTheme(isDark) {
-    monaco.editor.defineTheme('openqasm-theme', {
-        base: isDark ? 'vs-dark' : 'vs',
-        inherit: true,
-        rules: [
-            { token: 'Language', foreground: '#808080', fontStyle: 'bold' }, // gray for Language keyword    
-            { token: 'keyword', foreground: '#4981B0', fontStyle: 'bold' }, // dark blue for keyword (qubit, bit, include, let, gate)
-            { token: 'controlflow', foreground: '#C586C0', fontStyle: 'bold' },  // Purple for if/else/for/while/break/continue/return
-            { token: 'function', foreground: isDark ? '#DCDCAA' : '#A6A814' },  // Yellow for user defined function/gates names
-            { token: 'function-like', foreground: isDark ? '#9AD95D' : '#66BA14' },  // Yellow-green for function-like gate names (h, cx, ry)
-            { token: 'function-like-2', foreground: isDark ? '#10B880' : '#0AB139' },  // Light green for function-like names (measure, reset)
-            // { token: 'type', foreground: '#4EC9B0' },  // Cyan for type (float, int, etc.)
-            { token: 'string', foreground: isDark ? '#CE9178' : '#9D3F1A' },  // Orange for string (example: "Hello, world!")
-            { token: 'number', foreground: isDark ? '#B5CEA8' : '#407E1E' },  // Green for number (example: 1, 2, 3)
-            { token: 'comment', foreground: '#808080', fontStyle: 'italic' }, // gray italic for comment
+    // Use config.json if available, otherwise fall back to default values
+    const themeMode = isDark ? 'dark' : 'light';
+    
+    // Get OpenQASM 3 theme from config
+    let openqasmTheme = null;
+    if (monacoThemeConfig && monacoThemeConfig.openqasm3 && monacoThemeConfig.openqasm3[themeMode]) {
+        openqasmTheme = monacoThemeConfig.openqasm3[themeMode];
+    }
+    
+    // Get Quanta theme from config
+    let quantaTheme = null;
+    if (monacoThemeConfig && monacoThemeConfig.quanta && monacoThemeConfig.quanta[themeMode]) {
+        quantaTheme = monacoThemeConfig.quanta[themeMode];
+    }
+    
+    // Fallback to default theme if config is not available
+    if (!openqasmTheme) {
+        const defaultThemeRules = [
+            { token: 'Language', foreground: '#808080', fontStyle: 'bold' },
+            { token: 'keyword', foreground: '#4981B0', fontStyle: 'bold' },
+            { token: 'controlflow', foreground: '#C586C0', fontStyle: 'bold' },
+            { token: 'function', foreground: isDark ? '#DCDCAA' : '#A6A814' },
+            { token: 'function-like', foreground: isDark ? '#9AD95D' : '#66BA14' },
+            { token: 'function-like-2', foreground: isDark ? '#10B880' : '#0AB139' },
+            { token: 'string', foreground: isDark ? '#CE9178' : '#9D3F1A' },
+            { token: 'number', foreground: isDark ? '#B5CEA8' : '#407E1E' },
+            { token: 'comment', foreground: '#808080', fontStyle: 'italic' },
             { token: 'operator', foreground: isDark ? '#D4D4D4' : '#000000' },
             { token: 'delimiter', foreground: isDark ? '#D4D4D4' : '#000000' },
             { token: 'identifier', foreground: isDark ? '#D4D4D4' : '#000000' },
             { token: 'in-value', foreground: isDark ? '#88C0D7' : '#197297' },
-            { token: 'modifiers', fontStyle: 'italic' } // gray italic for modifiers (ctrl, inv, {text} @)
-        ],
-        colors: {
+            { token: 'modifiers', fontStyle: 'italic' }
+        ];
+        
+        const defaultThemeColors = {
             'editor.background': isDark ? '#000000' : '#FFFFFF',
             'editor.foreground': isDark ? '#FFFFFF' : '#000000',
             'editorLineNumber.foreground': isDark ? '#6A9955' : '#858585',
             'editor.selectionBackground': isDark ? '#264f78' : '#add6ff',
             'editor.lineHighlightBackground': isDark ? '#1e1e1e' : '#f0f0f0'
-        }
+        };
+        
+        openqasmTheme = {
+            base: isDark ? 'vs-dark' : 'vs',
+            inherit: true,
+            rules: defaultThemeRules,
+            colors: defaultThemeColors
+        };
+    }
+    
+    // Use Quanta theme if available, otherwise use OpenQASM 3 theme as fallback
+    if (!quantaTheme) {
+        quantaTheme = openqasmTheme;
+    }
+    
+    // Define theme for OpenQASM 3
+    monaco.editor.defineTheme('openqasm-theme', {
+        base: openqasmTheme.base,
+        inherit: openqasmTheme.inherit,
+        rules: openqasmTheme.rules,
+        colors: openqasmTheme.colors
+    });
+    
+    // Define theme for Quanta
+    monaco.editor.defineTheme('quanta-theme', {
+        base: quantaTheme.base,
+        inherit: quantaTheme.inherit,
+        rules: quantaTheme.rules,
+        colors: quantaTheme.colors
     });
 }
 
@@ -1753,6 +1984,10 @@ function applyTheme(theme) {
     // Update Monaco Editor theme
     if (monacoEditor) {
         updateMonacoEditorTheme(isDark);
+        // Update editor theme based on current language
+        const currentLanguage = codeFormatSelect ? codeFormatSelect.value : 'openqasm3';
+        const currentTheme = currentLanguage === 'quanta' ? 'quanta-theme' : 'openqasm-theme';
+        monacoEditor.updateOptions({ theme: currentTheme });
         // Update circuit diagram colors to match new theme
         updateCircuitDiagram();
     } 

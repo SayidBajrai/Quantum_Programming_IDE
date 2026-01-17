@@ -19,6 +19,7 @@ This project implements a full-stack quantum computing development environment t
 
 ### Key Features
 
+- **Multi-Language Support**: Full support for OpenQASM 3 and Quanta languages with syntax highlighting, parsing, and compilation
 - **OpenQASM 3 Compliance**: Full support for OpenQASM 3 syntax including qubit/bit registers, gate operations, measurements, and control flow constructs
 - **Visual Circuit Builder**: Drag-and-drop interface for building quantum circuits visually with real-time QASM code generation
 - **Quantum Circuit Simulation**: High-performance local simulation using Qiskit's AerSimulator with configurable shot counts
@@ -29,7 +30,8 @@ This project implements a full-stack quantum computing development environment t
 - **Persistent Storage**: Local file management system for saving and organizing quantum circuit definitions
 - **Standalone Executable**: PyInstaller support for creating portable, single-file executables with all dependencies bundled
 - **Offline Capable**: Local Tailwind CSS and all assets included - no external CDN dependencies required
-- **Advanced Code Editor**: Monaco Editor with OpenQASM 3 syntax highlighting, real-time error detection, and color-coded gate types
+- **Advanced Code Editor**: Monaco Editor with OpenQASM 3 and Quanta syntax highlighting, real-time error detection, and color-coded gate types
+- **Configurable Editor Themes**: Customizable Monaco editor themes via config.json with separate configurations for OpenQASM 3 and Quanta languages
 - **Interactive Circuit Visualization**: Multi-color circuit diagrams matching code syntax highlighting (blue for measure, cyan for gates, yellow for functions)
 - **Resizable Panels**: Adjustable code editor and circuit diagram sections with persistent layout preferences
 - **Dirac Notation Display**: Quantum state representation in standard bra-ket notation (|000⟩, |001⟩, etc.)
@@ -221,6 +223,18 @@ The compiler supports the following OpenQASM 3 constructs:
 - **Control Flow**: `for` loops with automatic expansion, `if/else` conditionals (noted in circuit building)
 - **Includes**: Standard gate library inclusion (`include "stdgates.inc"`)
 
+### Quanta Language Support
+
+The compiler supports the Quanta programming language, which compiles to OpenQASM 3. Quanta provides a Python-like syntax for quantum programming:
+
+- **Gate Definitions**: User-defined gates with parameters
+- **Register Declarations**: `qubit[n]` and `bit[n]` syntax
+- **Standard Gates**: H, X, Y, Z, CNOT, and other quantum operations
+- **Measurements**: `MeasureAll()` and individual measurement operations
+- **Compilation**: Quanta code is automatically converted to OpenQASM 3 before execution
+
+**Note**: Quanta language support requires `quanta-lang>=0.1.5` to be installed. The compiler provides detailed error messages for syntax issues and gate definition problems.
+
 ### Example Circuits
 
 #### Bell State (Entangled Pair)
@@ -259,6 +273,21 @@ h q[0];
 measure q -> c;
 ```
 
+#### Bell State in Quanta Language
+
+```quanta
+qubit[2] q
+bit[2] c
+
+gate Bell(a, b) {
+    H(a)
+    CNOT(a, b)
+}
+
+Bell(q[0], q[1])
+MeasureAll(q, c)
+```
+
 ### File Management
 
 The platform provides comprehensive file management capabilities:
@@ -294,16 +323,22 @@ Serves the circuit builder interface with drag-and-drop gate palette, visual cir
 
 #### `POST /compile`
 
-Compiles and simulates OpenQASM 3 code.
+Compiles and simulates OpenQASM 3 or Quanta code.
 
 **Request Body:**
 
 ```json
 {
   "code": "OPENQASM 3; ...",
-  "shots": 1024
+  "shots": 1024,
+  "language": "openqasm3"
 }
 ```
+
+**Parameters:**
+- `code` (string, required): Quantum source code in OpenQASM 3 or Quanta format
+- `shots` (integer, optional): Number of measurement shots (default: 1024)
+- `language` (string, optional): Language format - `"openqasm3"` or `"quanta"` (default: `"openqasm3"`)
 
 **Success Response (200):**
 
@@ -356,6 +391,22 @@ or
   "success": true,
   "text": "Circuit text representation",
   "format": "text"
+}
+```
+
+#### `GET /config.json`
+
+Retrieves the Monaco editor theme configuration file.
+
+**Success Response (200):**
+
+Returns the `config.json` file containing Monaco editor theme configurations for OpenQASM 3 and Quanta languages (both dark and light themes).
+
+**Error Response (404):**
+
+```json
+{
+  "error": "config.json not found"
 }
 ```
 
@@ -594,7 +645,8 @@ Contributors are encouraged to follow best practices for code quality, documenta
 - **Flask** (2.0+): Web framework for RESTful API endpoints
 - **Qiskit** (0.45+): Quantum circuit construction and simulation framework
 - **Qiskit Aer**: High-performance quantum circuit simulator
-- **openqasm3[parser]** (0.5.0): OpenQASM 3 parser with AST generation
+- **qiskit-qasm3-import** (0.6.0+): OpenQASM 3 parser with AST generation
+- **quanta-lang** (0.1.5+): Quanta language compiler that converts Quanta code to OpenQASM 3
 - **matplotlib**: Circuit diagram visualization and SVG generation
 - **numpy**: Numerical computations for quantum state manipulation
 
@@ -694,6 +746,17 @@ For questions, technical issues, collaboration inquiries, or research partnershi
 
 ## Version History
 
+- **v1.1.1** (2026-01-17): Configurable Monaco editor themes and improved Quanta language support
+
+  - Added `config.json` for centralized Monaco editor theme configuration
+  - Separate theme configurations for OpenQASM 3 and Quanta languages
+  - save based on language (.qasm or .qta)
+  - Dynamic theme loading from config.json with fallback to defaults
+  - Enhanced Quanta parser error handling with detailed error messages
+  - Improved error messages for gate definition syntax issues
+  - Added `/config.json` backend route for theme configuration access
+  - Theme customization without code changes - edit config.json directly
+
 - **v1.1.0** (2026-01-17): Visual Circuit Builder with drag-and-drop interface
 
   - Added `/circuit` route for visual circuit builder page
@@ -742,5 +805,5 @@ For questions, technical issues, collaboration inquiries, or research partnershi
 
 ---
 
-**Version**: 1.1.0
+**Version**: 1.1.1
 **Last Updated**: 2026-01-17

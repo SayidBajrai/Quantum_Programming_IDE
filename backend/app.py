@@ -1,7 +1,7 @@
 """
 Flask entry point for OpenQASM 3 Web Compiler & Simulator
 """
-from flask import Flask, render_template, request, jsonify, Response, redirect, url_for
+from flask import Flask, render_template, request, jsonify, Response, redirect, url_for, send_file
 from compiler.executor import compile_and_simulate
 from utils.errors import CompilationError, SimulationError
 import traceback
@@ -46,6 +46,25 @@ def index():
     """Redirect root to home page"""
     return redirect(url_for('home'))
 
+@app.route('/config.json')
+def get_config():
+    """Serve config.json file"""
+    try:
+        if getattr(sys, 'frozen', False):
+            # Running as compiled executable
+            config_path = os.path.join(os.path.dirname(sys.executable), 'config.json')
+        else:
+            # Running as script
+            config_path = os.path.join(base_path, 'config.json')
+        
+        if os.path.exists(config_path):
+            from flask import send_file
+            return send_file(config_path, mimetype='application/json')
+        else:
+            return jsonify({"error": "config.json not found"}), 404
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
 @app.route('/home')
 def home():
     """Serve the home page"""
@@ -64,11 +83,12 @@ def circuit():
 @app.route('/circuit-diagram', methods=['POST'])
 def circuit_diagram():
     """
-    Generate circuit diagram from OpenQASM 3 code
+    Generate circuit diagram from quantum code (OpenQASM 3 or Quanta)
     
     Expected JSON:
     {
-        "code": "..."
+        "code": "...",
+        "language": "openqasm3"  // optional, defaults to "openqasm3"
     }
     
     Returns:
@@ -86,16 +106,25 @@ def circuit_diagram():
             }), 400
         
         code = data.get('code', '')
+        language = data.get('language', 'openqasm3')  # Default to OpenQASM 3
+        
         if not code:
             return jsonify({
                 "success": False,
                 "error": "No code provided"
             }), 400
         
-        # Parse circuit using qiskit-qasm3-import (as per https://pypi.org/project/qiskit-qasm3-import/)
+        # Validate language
+        if language not in ['openqasm3', 'quanta']:
+            return jsonify({
+                "success": False,
+                "error": f"Invalid language: {language}. Must be 'openqasm3' or 'quanta'"
+            }), 400
+        
+        # Parse circuit using appropriate parser
         try:
             from compiler.parser import parse_qasm
-            circuit = parse_qasm(code)
+            circuit = parse_qasm(code, language=language)
             
             if circuit is None:
                 return jsonify({
@@ -185,7 +214,8 @@ def download_circuit():
     
     Expected JSON:
     {
-        "code": "..."
+        "code": "...",
+        "language": "openqasm3"  // optional, defaults to "openqasm3"
     }
     
     Returns:
@@ -200,21 +230,32 @@ def download_circuit():
             }), 400
         
         code = data.get('code', '')
+        language = data.get('language', 'openqasm3')  # Default to OpenQASM 3
+        
         if not code:
             return jsonify({
                 "success": False,
                 "error": "No code provided"
             }), 400
         
-        # Parse circuit using qiskit-qasm3-import
+        # Validate language
+        if language not in ['openqasm3', 'quanta']:
+            return jsonify({
+                "success": False,
+                "error": f"Invalid language: {language}. Must be 'openqasm3' or 'quanta'"
+            }), 400
+        
+        # Parse circuit using appropriate parser
         try:
             from compiler.parser import parse_qasm
-            circuit = parse_qasm(code)
+            circuit = parse_qasm(code, language=language)
             
             if circuit is None:
+                lang_name = 'Quanta' if language == 'quanta' else 'OpenQASM 3'
+                parser_pkg = 'quanta-lang' if language == 'quanta' else 'qiskit-qasm3-import'
                 return jsonify({
                     "success": False,
-                    "error": "OpenQASM 3 parser not available. Please install qiskit-qasm3-import."
+                    "error": f"{lang_name} parser not available. Please install {parser_pkg}."
                 }), 400
             
             # Bind parameters if circuit has input parameters
@@ -284,7 +325,7 @@ def download_circuit():
 @app.route('/saved-files', methods=['GET'])
 def get_saved_files():
     """
-    Get list of .qasm files in the Saved folder
+    Get list of .qasm, .qasm3, and .qta files in the Saved folder
     """
     try:
         saved_dir = get_saved_dir()
@@ -292,7 +333,7 @@ def get_saved_files():
         
         if os.path.exists(saved_dir):
             for filename in os.listdir(saved_dir):
-                if filename.endswith('.qasm') or filename.endswith('.qasm3'):
+                if filename.endswith('.qasm') or filename.endswith('.qasm3') or filename.endswith('.qta'):
                     # Get file name without extension for display
                     name = os.path.splitext(filename)[0]
                     files.append({
@@ -338,6 +379,7 @@ def save_file():
         
         filename = data.get('filename', '').strip()
         code = data.get('code', '')
+        language = data.get('language', 'openqasm3')  # Get language to determine extension
         
         if not filename:
             return jsonify({
@@ -351,9 +393,13 @@ def save_file():
                 "error": "No code provided"
             }), 400
         
-        # Ensure filename ends with .qasm
-        if not filename.endswith('.qasm') and not filename.endswith('.qasm3'):
-            filename += '.qasm'
+        # Ensure filename ends with correct extension based on language
+        if language == 'quanta':
+            if not filename.endswith('.qta'):
+                filename += '.qta'
+        else:
+            if not filename.endswith('.qasm') and not filename.endswith('.qasm3'):
+                filename += '.qasm'
         
         # Sanitize filename (remove path traversal attempts)
         filename = os.path.basename(filename)
@@ -414,9 +460,20 @@ def check_file_exists():
                 "exists": False
             }), 400
         
-        # Ensure filename ends with .qasm
-        if not filename.endswith('.qasm') and not filename.endswith('.qasm3'):
-            filename += '.qasm'
+        # Check if filename already has an extension, if not try common extensions
+        if not (filename.endswith('.qasm') or filename.endswith('.qasm3') or filename.endswith('.qta')):
+            # Try .qasm first, then .qta if .qasm doesn't exist
+            saved_dir = get_saved_dir()
+            qasm_path = os.path.join(saved_dir, filename + '.qasm')
+            qta_path = os.path.join(saved_dir, filename + '.qta')
+            
+            if os.path.exists(qasm_path):
+                filename += '.qasm'
+            elif os.path.exists(qta_path):
+                filename += '.qta'
+            else:
+                # Default to .qasm if neither exists
+                filename += '.qasm'
         
         # Sanitize filename
         filename = os.path.basename(filename)
@@ -535,9 +592,15 @@ def rename_file():
                 "error": "Both old and new filenames are required"
             }), 400
         
-        # Ensure new filename ends with .qasm
-        if not newFilename.endswith('.qasm') and not newFilename.endswith('.qasm3'):
-            newFilename += '.qasm'
+        # Determine extension based on old filename extension
+        oldExt = os.path.splitext(oldFilename)[1]
+        if oldExt == '.qta':
+            if not newFilename.endswith('.qta'):
+                newFilename += '.qta'
+        else:
+            # Default to .qasm for .qasm and .qasm3 files
+            if not newFilename.endswith('.qasm') and not newFilename.endswith('.qasm3'):
+                newFilename += '.qasm'
         
         # Sanitize filenames
         oldFilename = os.path.basename(oldFilename)
@@ -583,12 +646,13 @@ def rename_file():
 @app.route('/compile', methods=['POST'])
 def compile():
     """
-    Compile and simulate OpenQASM 3 code
+    Compile and simulate quantum code (OpenQASM 3 or Quanta)
     
     Expected JSON:
     {
         "code": "...",
-        "shots": 1024
+        "shots": 1024,
+        "language": "openqasm3"  // optional, defaults to "openqasm3"
     }
     
     Returns:
@@ -609,6 +673,14 @@ def compile():
         
         code = data.get('code', '')
         shots = data.get('shots', 1024)
+        language = data.get('language', 'openqasm3')  # Default to OpenQASM 3
+        
+        # Validate language
+        if language not in ['openqasm3', 'quanta']:
+            return jsonify({
+                "success": False,
+                "error": f"Invalid language: {language}. Must be 'openqasm3' or 'quanta'"
+            }), 400
         
         if not code:
             return jsonify({
@@ -617,7 +689,7 @@ def compile():
             }), 400
         
         # Compile and simulate
-        result = compile_and_simulate(code, shots)
+        result = compile_and_simulate(code, shots, language=language)
         
         return jsonify({
             "success": True,

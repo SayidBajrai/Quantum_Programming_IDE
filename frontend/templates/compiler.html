@@ -111,7 +111,13 @@
                 <!-- Code Editor Section -->
                 <div id="codeEditorSection" class="flex flex-col" style="width: 50%; min-width: 200px;">
                     <div class="mb-0 flex items-center justify-between p-4">
-                        <h2 class="text-lg font-semibold">OpenQASM 3 Code</h2>
+                        <div class="flex items-center space-x-2">
+                            <span class="text-lg font-semibold">Code:</span>
+                            <select id="codeFormatSelect" class="px-3 py-1 bg-gray-800 border border-gray-700 rounded text-sm text-gray-100 focus:outline-none focus:ring-2 focus:ring-green-500">
+                                <option value="openqasm3" selected>OpenQASM 3</option>
+                                <option value="quanta">Quanta</option>
+                            </select>
+                        </div>
                         <div class="flex items-center space-x-4">
                             <label class="flex items-center space-x-2">
                                 <span class="text-sm text-gray-400">Shots:</span>

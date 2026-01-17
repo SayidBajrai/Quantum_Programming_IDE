@@ -141,7 +141,7 @@ function initializeCircuitBuilder() {
         const qubitHeight = 60;
         const columnWidth = 80;
         const qubit = Math.floor(svgPoint.y / qubitHeight);
-        const column = Math.max(0, Math.floor((svgPoint.x - 100) / columnWidth)); // Account for qubit labels
+        const column = Math.max(0, Math.floor((svgPoint.x - 100) / columnWidth)) + 1; // Account for qubit labels
         
         if (qubit >= 0 && qubit < circuitState.qubits && column >= 0) {
             if (window.draggedExistingGate) {
@@ -268,7 +268,7 @@ function initializeCircuitBuilder() {
             const qubitHeight = 60;
             const columnWidth = 80;
             const qubit = Math.floor(svgPoint.y / qubitHeight);
-            const column = Math.max(0, Math.floor((svgPoint.x - 100) / columnWidth)); // Account for qubit labels
+            const column = Math.max(0, Math.floor((svgPoint.x - 100) / columnWidth)) + 1; // Account for qubit labels
             
             // Check if drop is within valid area
             if (qubit >= 0 && qubit < circuitState.qubits && column >= 0) {
