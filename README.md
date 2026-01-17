@@ -618,7 +618,7 @@ If you use this software in your research or academic work, please cite:
   author = {Sayid Bajrai Abdul Nasir},
   year = {2026},
   url = {https://github.com/SayidBajrai/Quantum_Programming_IDE},
-  version = {1.0.3}
+  version = {1.1.0}
 }
 ```
 
@@ -691,7 +691,7 @@ For questions, technical issues, collaboration inquiries, or research partnershi
 
 ## Version History
 
-- **v1.0.4** (2026-01-16): Visual Circuit Builder with drag-and-drop interface
+- **v1.1.0** (2026-01-17): Visual Circuit Builder with drag-and-drop interface
 
   - Added `/circuit` route for visual circuit builder page
   - Drag-and-drop gate palette with single-qubit and multi-qubit gates
@@ -739,5 +739,5 @@ For questions, technical issues, collaboration inquiries, or research partnershi
 
 ---
 
-**Version**: 1.0.4
-**Last Updated**: 2026-01-16
+**Version**: 1.1.0
+**Last Updated**: 2026-01-17
