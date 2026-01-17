@@ -14,6 +14,9 @@ This project implements a full-stack quantum computing development environment t
 **Compiler Page:**
 ![Quantum Programming IDE Compiler](resources/compiler.png)
 
+**Circuit Builder Page:**
+![Quantum Programming IDE Circuit Builder](resources/circuit.png)
+
 ### Key Features
 
 - **OpenQASM 3 Compliance**: Full support for OpenQASM 3 syntax including qubit/bit registers, gate operations, measurements, and control flow constructs
