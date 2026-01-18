@@ -1441,15 +1441,30 @@ async function downloadCircuitDiagram() {
         // Get the PNG blob from response
         const blob = await response.blob();
         
+        // Get filename from Content-Disposition header if available
+        const contentDisposition = response.headers.get('Content-Disposition');
+        let filename = `circuit.png`;
+        // if (contentDisposition) {
+        //     const filenameMatch = contentDisposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/);
+        //     if (filenameMatch && filenameMatch[1]) {
+        //         filename = filenameMatch[1].replace(/['"]/g, '');
+        //     }
+        // }
+        
         // Create download link
+        // Note: Blob URLs on HTTP will show a security warning, but this is harmless for local development
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = 'circuit.png';
+        a.download = filename;
+        a.style.display = 'none';
         document.body.appendChild(a);
         a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
+        // Clean up immediately to minimize security warning exposure
+        setTimeout(() => {
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }, 100);
         
     } catch (error) {
         console.error('Error downloading circuit diagram:', error);

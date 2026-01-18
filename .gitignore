@@ -28,6 +28,6 @@ Thumbs.db
 *.log
 
 # Distribution / packaging
-dist/
+# dist/
 build/
 *.egg-info/

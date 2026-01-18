@@ -394,6 +394,44 @@ or
 }
 ```
 
+#### `POST /download-circuit`
+
+Downloads a high-resolution PNG image of the quantum circuit diagram.
+
+**Request Body:**
+
+```json
+{
+  "code": "OPENQASM 3; ...",
+  "language": "openqasm3"
+}
+```
+
+**Parameters:**
+- `code` (string, required): Quantum source code in OpenQASM 3 or Quanta format
+- `language` (string, optional): Language format - `"openqasm3"` or `"quanta"` (default: `"openqasm3"`)
+
+**Success Response (200):**
+
+Returns a PNG image file with `Content-Type: image/png` and `Content-Disposition: attachment; filename=circuit_{font_name}.png`.
+
+The filename includes the font used to render the circuit (e.g., `circuit_DejaVuSansMono.png`, `circuit_Consolas.png`).
+
+**Error Response (400/500):**
+
+```json
+{
+  "success": false,
+  "error": "Error message description"
+}
+```
+
+**Features:**
+- High-resolution rendering with 2x scale factor for sharp text
+- Automatic font selection with fallback chain (DejaVu Sans Mono, Consolas, Courier New, Liberation Mono, Menlo, Courier)
+- No horizontal folding (fold=-1) for complete circuit visibility
+- Accurate image sizing based on actual text dimensions
+
 #### `GET /config.json`
 
 Retrieves the Monaco editor theme configuration file.
@@ -648,6 +686,7 @@ Contributors are encouraged to follow best practices for code quality, documenta
 - **qiskit-qasm3-import** (0.6.0+): OpenQASM 3 parser with AST generation
 - **quanta-lang** (0.1.5+): Quanta language compiler that converts Quanta code to OpenQASM 3
 - **matplotlib**: Circuit diagram visualization and SVG generation
+- **Pillow** (10.0.0+): High-resolution PNG image generation for circuit diagram downloads
 - **numpy**: Numerical computations for quantum state manipulation
 
 ### Frontend Dependencies
@@ -673,7 +712,7 @@ If you use this software in your research or academic work, please cite:
   author = {Sayid Bajrai Abdul Nasir},
   year = {2026},
   url = {https://github.com/SayidBajrai/Quantum_Programming_IDE},
-  version = {1.1.0}
+  version = {1.1.2}
 }
 ```
 
@@ -746,6 +785,19 @@ For questions, technical issues, collaboration inquiries, or research partnershi
 
 ## Version History
 
+- **v1.1.2** (2026-01-18): Enhanced circuit diagram download with high-resolution PIL rendering
+
+  - Replaced matplotlib backend with PIL (Pillow) for circuit diagram image generation
+  - Added local DejaVu Sans Mono font support with automatic fallback to system fonts
+  - Improved image resolution with 2x scale factor for sharper text rendering
+  - Increased base font size from 14pt to 16pt for better readability
+  - Enhanced image size calculation using accurate text bounding box measurements
+  - Added fold=-1 parameter to prevent horizontal circuit folding in downloaded images
+  - Dynamic filename generation based on used font (e.g., circuit_DejaVuSansMono.png, circuit_Consolas.png)
+  - Improved font selection with prioritized fallback chain (Consolas, Courier New, Liberation Mono, Menlo, DejaVu Sans Mono, Courier)
+  - Better padding and minimum size constraints for properly sized circuit diagrams
+  - Added Pillow>=10.0.0 to requirements.txt
+
 - **v1.1.1** (2026-01-17): Configurable Monaco editor themes and improved Quanta language support
 
   - Added `config.json` for centralized Monaco editor theme configuration
@@ -805,5 +857,5 @@ For questions, technical issues, collaboration inquiries, or research partnershi
 
 ---
 
-**Version**: 1.1.1
-**Last Updated**: 2026-01-17
+**Version**: 1.1.2
+**Last Updated**: 2026-01-18

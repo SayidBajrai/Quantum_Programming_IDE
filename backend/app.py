@@ -210,7 +210,7 @@ def circuit_diagram():
 @app.route('/download-circuit', methods=['POST'])
 def download_circuit():
     """
-    Download circuit diagram as PNG using matplotlib
+    Download circuit diagram as PNG using PIL (Pillow) from text representation
     
     Expected JSON:
     {
@@ -276,38 +276,121 @@ def download_circuit():
                 "error": f"Failed to parse circuit: {str(e)}"
             }), 400
         
-        # Generate PNG using matplotlib
+        # Generate PNG using PIL from text representation
         try:
-            import matplotlib
-            matplotlib.use('Agg')  # Use non-interactive backend
-            import matplotlib.pyplot as plt
+            from PIL import Image, ImageDraw, ImageFont
             
-            # Draw circuit with matplotlib - fold=-1 prevents horizontal folding
-            fig = circuit.draw(output='mpl', fold=-1)
+            # Get text representation of circuit with fold=-1 to prevent horizontal folding
+            text = circuit.draw('text', fold=-1).single_string()
             
-            # Save to BytesIO buffer as PNG, use a lower DPI to speed up for big circuits
-            img_buffer = io.BytesIO()
+            # Choose a monospace font appropriate for quantum circuit diagrams
+            # Quantum circuits use box-drawing characters, so we need Unicode support
+            font = None
+            used_font_name = "Default"
+            
+            # Scale factor for higher resolution (2x for better quality)
+            scale_factor = 2
+            base_font_size = 16  # Increased from 14 for better readability
+            
+            # Try local font file first
+            local_font_path = os.path.join(base_path, 'font', 'DejaVuSansMono.ttf')
+            if os.path.exists(local_font_path):
+                try:
+                    font = ImageFont.truetype(local_font_path, base_font_size * scale_factor)
+                    used_font_name = "DejaVuSansMono"
+                except (OSError, IOError):
+                    pass
+            
+            # Fallback to system fonts if local font not available
+            if font is None:
+                font_names = [
+                    "Consolas",           # Windows - excellent for technical diagrams
+                    "Courier New",        # Cross-platform - widely available
+                    "Liberation Mono",    # Linux - good Unicode support
+                    "Menlo",              # macOS - good for technical text
+                    "DejaVu Sans Mono",   # Linux fallback
+                    "Courier",            # Generic fallback
+                ]
+                
+                for font_name in font_names:
+                    try:
+                        font = ImageFont.truetype(font_name, base_font_size * scale_factor)
+                        used_font_name = font_name
+                        break
+                    except (OSError, IOError):
+                        continue
+            
+            if font is None:
+                # For default font, we'll need to scale it differently
+                font = ImageFont.load_default()
+                used_font_name = "Default"
+            
+            # Calculate accurate image size using actual text dimensions
+            lines = text.split('\n')
+            if not lines:
+                lines = ['']
+            
+            # Create a temporary image to measure text accurately
+            temp_img = Image.new("RGB", (1, 1), "white")
+            temp_draw = ImageDraw.Draw(temp_img)
+            
+            # Use textbbox for modern PIL, fallback to getsize for older versions
             try:
-                # Lower dpi and less tight bbox for speed
-                fig.savefig(
-                    img_buffer,
-                    format='png',
-                    bbox_inches='tight',
-                    facecolor='white',
-                    edgecolor='none',
-                    dpi=70,  # Lower DPI for faster rendering (default=100, was 150)
-                    pad_inches=0.05  # Slightly less whitespace for speed
-                )
-            finally:
-                plt.close(fig)
+                # Modern PIL (10.0.0+)
+                # Get actual bounding box of the multiline text
+                bbox = temp_draw.textbbox((0, 0), text, font=font)
+                text_width = bbox[2] - bbox[0]
+                text_height = bbox[3] - bbox[1]
+            except (AttributeError, TypeError):
+                # Older PIL versions or fallback
+                try:
+                    # Try to get character dimensions
+                    bbox = font.getbbox('A')
+                    char_width = bbox[2] - bbox[0]
+                    char_height = bbox[3] - bbox[1]
+                except (AttributeError, TypeError):
+                    try:
+                        char_width, char_height = font.getsize('A')
+                    except:
+                        char_width, char_height = 8 * scale_factor, 16 * scale_factor  # Fallback dimensions
+                
+                # Calculate from lines
+                max_line_width = max(len(line) for line in lines) if lines else 0
+                text_width = char_width * max_line_width
+                text_height = char_height * len(lines)
+            
+            # Add padding (scaled)
+            padding = 20 * scale_factor
+            width = int(text_width) + padding * 2
+            height = int(text_height) + padding * 2
+            
+            # Ensure minimum size
+            width = max(width, 200 * scale_factor)
+            height = max(height, 100 * scale_factor)
+            
+            # Create high-resolution image
+            img = Image.new("RGB", (width, height), "white")
+            draw = ImageDraw.Draw(img)
+            
+            # Draw text with scaled padding
+            draw.multiline_text((padding, padding), text, fill="black", font=font, spacing=0)
+            
+            # Save to BytesIO buffer as PNG with high quality
+            img_buffer = io.BytesIO()
+            # Save with optimize=False for faster encoding, but keep high quality
+            img.save(img_buffer, format='png', optimize=False)
             img_buffer.seek(0)
+            
+            # Sanitize font name for filename (replace spaces with underscores)
+            font_filename = used_font_name.replace(' ', '_')
+            filename = f'circuit_{font_filename}.png'
             
             # Return PNG file
             return Response(
                 img_buffer.getvalue(),
                 mimetype='image/png',
                 headers={
-                    'Content-Disposition': 'attachment; filename=circuit.png'
+                    'Content-Disposition': f'attachment; filename={filename}'
                 }
             )
         except Exception as e:
