@@ -88,12 +88,26 @@ if errorlevel 1 (
     exit /b 1
 )
 
+REM Copy config.json to dist folder (not bundled in exe)
+echo Copying config.json to dist folder...
+if exist config.json (
+    copy /Y config.json dist\config.json >nul
+    if errorlevel 1 (
+        echo WARNING: Failed to copy config.json to dist folder
+    ) else (
+        echo config.json copied successfully.
+    )
+) else (
+    echo WARNING: config.json not found in project root
+)
+
 echo.
 echo ========================================
 echo Build completed successfully!
 echo ========================================
 echo.
 echo Executable location: dist\QuantumIDE.exe
+echo Config file location: dist\config.json
 echo.
 echo Note: The executable includes all dependencies.
 echo You can distribute the entire 'dist' folder.
