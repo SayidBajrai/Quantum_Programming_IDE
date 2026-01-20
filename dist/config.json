@@ -1,0 +1,116 @@
+{
+  "monacoThemes": {
+    "openqasm3": {
+      "dark": {
+        "base": "vs-dark",
+        "inherit": true,
+        "rules": [
+          { "token": "Language", "foreground": "#808080", "fontStyle": "bold" },
+          { "token": "keyword", "foreground": "#4981B0", "fontStyle": "bold" },
+          { "token": "controlflow", "foreground": "#C586C0", "fontStyle": "bold" },
+          { "token": "function", "foreground": "#DCDCAA" },
+          { "token": "function-like", "foreground": "#9AD95D" },
+          { "token": "function-like-2", "foreground": "#10B880" },
+          { "token": "string", "foreground": "#CE9178" },
+          { "token": "number", "foreground": "#B5CEA8" },
+          { "token": "comment", "foreground": "#808080", "fontStyle": "italic" },
+          { "token": "operator", "foreground": "#D4D4D4" },
+          { "token": "delimiter", "foreground": "#D4D4D4" },
+          { "token": "identifier", "foreground": "#D4D4D4" },
+          { "token": "in-value", "foreground": "#88C0D7" },
+          { "token": "modifiers", "fontStyle": "italic" }
+        ],
+        "colors": {
+          "editor.background": "#000000",
+          "editor.foreground": "#FFFFFF",
+          "editorLineNumber.foreground": "#6A9955",
+          "editor.selectionBackground": "#264f78",
+          "editor.lineHighlightBackground": "#1e1e1e"
+        }
+      },
+      "light": {
+        "base": "vs",
+        "inherit": true,
+        "rules": [
+          { "token": "Language", "foreground": "#808080", "fontStyle": "bold" },
+          { "token": "keyword", "foreground": "#4981B0", "fontStyle": "bold" },
+          { "token": "controlflow", "foreground": "#C586C0", "fontStyle": "bold" },
+          { "token": "function", "foreground": "#A6A814" },
+          { "token": "function-like", "foreground": "#66BA14" },
+          { "token": "function-like-2", "foreground": "#0AB139" },
+          { "token": "string", "foreground": "#9D3F1A" },
+          { "token": "number", "foreground": "#407E1E" },
+          { "token": "comment", "foreground": "#808080", "fontStyle": "italic" },
+          { "token": "operator", "foreground": "#000000" },
+          { "token": "delimiter", "foreground": "#000000" },
+          { "token": "identifier", "foreground": "#000000" },
+          { "token": "in-value", "foreground": "#197297" },
+          { "token": "modifiers", "fontStyle": "italic" }
+        ],
+        "colors": {
+          "editor.background": "#FFFFFF",
+          "editor.foreground": "#000000",
+          "editorLineNumber.foreground": "#858585",
+          "editor.selectionBackground": "#add6ff",
+          "editor.lineHighlightBackground": "#f0f0f0"
+        }
+      }
+    },
+    "quanta": {
+      "dark": {
+        "base": "vs-dark",
+        "inherit": true,
+        "rules": [
+          { "token": "Language", "foreground": "#808080", "fontStyle": "bold" },
+          { "token": "keyword", "foreground": "#4981B0", "fontStyle": "bold" },
+          { "token": "controlflow", "foreground": "#C586C0", "fontStyle": "bold" },
+          { "token": "function", "foreground": "#DCDCAA" },
+          { "token": "function-like", "foreground": "#9AD95D" },
+          { "token": "function-like-2", "foreground": "#10B880" },
+          { "token": "string", "foreground": "#CE9178" },
+          { "token": "number", "foreground": "#B5CEA8" },
+          { "token": "comment", "foreground": "#808080", "fontStyle": "italic" },
+          { "token": "operator", "foreground": "#D4D4D4" },
+          { "token": "delimiter", "foreground": "#D4D4D4" },
+          { "token": "identifier", "foreground": "#D4D4D4" },
+          { "token": "in-value", "foreground": "#88C0D7" },
+          { "token": "modifiers", "fontStyle": "italic" }
+        ],
+        "colors": {
+          "editor.background": "#000000",
+          "editor.foreground": "#FFFFFF",
+          "editorLineNumber.foreground": "#6A9955",
+          "editor.selectionBackground": "#264f78",
+          "editor.lineHighlightBackground": "#1e1e1e"
+        }
+      },
+      "light": {
+        "base": "vs",
+        "inherit": true,
+        "rules": [
+          { "token": "Language", "foreground": "#808080", "fontStyle": "bold" },
+          { "token": "keyword", "foreground": "#4981B0", "fontStyle": "bold" },
+          { "token": "controlflow", "foreground": "#C586C0", "fontStyle": "bold" },
+          { "token": "function", "foreground": "#A6A814" },
+          { "token": "function-like", "foreground": "#66BA14" },
+          { "token": "function-like-2", "foreground": "#0AB139" },
+          { "token": "string", "foreground": "#9D3F1A" },
+          { "token": "number", "foreground": "#407E1E" },
+          { "token": "comment", "foreground": "#808080", "fontStyle": "italic" },
+          { "token": "operator", "foreground": "#000000" },
+          { "token": "delimiter", "foreground": "#000000" },
+          { "token": "identifier", "foreground": "#000000" },
+          { "token": "in-value", "foreground": "#197297" },
+          { "token": "modifiers", "fontStyle": "italic" }
+        ],
+        "colors": {
+          "editor.background": "#FFFFFF",
+          "editor.foreground": "#000000",
+          "editorLineNumber.foreground": "#858585",
+          "editor.selectionBackground": "#add6ff",
+          "editor.lineHighlightBackground": "#f0f0f0"
+        }
+      }
+    }
+  }
+}
