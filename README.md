@@ -712,7 +712,7 @@ If you use this software in your research or academic work, please cite:
   author = {Sayid Bajrai Abdul Nasir},
   year = {2026},
   url = {https://github.com/SayidBajrai/Quantum_Programming_IDE},
-  version = {1.1.2}
+  version = {1.1.3}
 }
 ```
 
@@ -784,6 +784,20 @@ For questions, technical issues, collaboration inquiries, or research partnershi
     [https://arxiv.org/abs/2304.15000](https://arxiv.org/abs/2304.15000)
 
 ## Version History
+
+- **v1.1.3** (2026-01-21): Enhanced circuit builder with independent component dragging and theme support
+
+  - Improved multi-qubit gate dragging with independent control and target component movement
+  - Control dot and target rect can now be moved independently in both x and y directions
+  - Connecting line automatically updates to maintain connection between components
+  - Updated circuit layout with improved spacing (line x1=150, text x=120, SVG width=linewidth+150)
+  - Added delete zone functionality - drag gates to x < 100 area to delete with visual feedback
+  - Visual delete zone indicator with highlighting when dragging gates over it
+  - Implemented full dark/light mode support for home and circuit pages
+  - Theme-aware gatePalette buttons that adapt to dark/light mode
+  - Updated sidebar toggle functionality for circuit page with theme support
+  - Enhanced theme system integration across all pages for consistent user experience
+  - Improved visual feedback during gate dragging operations
 
 - **v1.1.2** (2026-01-18): Enhanced circuit diagram download with high-resolution PIL rendering
 
@@ -857,5 +871,5 @@ For questions, technical issues, collaboration inquiries, or research partnershi
 
 ---
 
-**Version**: 1.1.2
-**Last Updated**: 2026-01-18
+**Version**: 1.1.3
+**Last Updated**: 2026-01-21

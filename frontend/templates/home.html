@@ -55,47 +55,47 @@
 
         <!-- Features Section -->
         <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-6 mb-12">
-            <div class="bg-[#1a1a1a] border border-gray-800 rounded-lg p-6">
+            <div class="theme-feature-card bg-[#1a1a1a] border border-gray-800 rounded-lg p-6">
                 <div class="text-green-400 text-3xl mb-4">⚛️</div>
                 <h3 class="text-xl font-semibold mb-2">OpenQASM 3 Support</h3>
-                <p class="text-gray-400">Full support for OpenQASM 3 syntax with real-time syntax highlighting and validation.</p>
+                <p class="theme-feature-text text-gray-400">Full support for OpenQASM 3 syntax with real-time syntax highlighting and validation.</p>
             </div>
 
-            <div class="bg-[#1a1a1a] border border-gray-800 rounded-lg p-6">
+            <div class="theme-feature-card bg-[#1a1a1a] border border-gray-800 rounded-lg p-6">
                 <div class="text-green-400 text-3xl mb-4">🖱️</div>
                 <h3 class="text-xl font-semibold mb-2">Drag & Drop Circuit Builder</h3>
-                <p class="text-gray-400">Build quantum circuits visually by dragging gates from the palette. Real-time QASM code generation as you design.</p>
+                <p class="theme-feature-text text-gray-400">Build quantum circuits visually by dragging gates from the palette. Real-time QASM code generation as you design.</p>
             </div>
 
-            <div class="bg-[#1a1a1a] border border-gray-800 rounded-lg p-6">
+            <div class="theme-feature-card bg-[#1a1a1a] border border-gray-800 rounded-lg p-6">
                 <div class="text-green-400 text-3xl mb-4">🔬</div>
                 <h3 class="text-xl font-semibold mb-2">Circuit Simulation</h3>
-                <p class="text-gray-400">Run quantum circuit simulations and visualize results with histograms and probability distributions.</p>
+                <p class="theme-feature-text text-gray-400">Run quantum circuit simulations and visualize results with histograms and probability distributions.</p>
             </div>
 
-            <div class="bg-[#1a1a1a] border border-gray-800 rounded-lg p-6">
+            <div class="theme-feature-card bg-[#1a1a1a] border border-gray-800 rounded-lg p-6">
                 <div class="text-green-400 text-3xl mb-4">📊</div>
                 <h3 class="text-xl font-semibold mb-2">Circuit Diagrams</h3>
-                <p class="text-gray-400">Real-time circuit diagram generation with syntax-based color coding for gates and operations.</p>
+                <p class="theme-feature-text text-gray-400">Real-time circuit diagram generation with syntax-based color coding for gates and operations.</p>
             </div>
 
-            <div class="bg-[#1a1a1a] border border-gray-800 rounded-lg p-6">
+            <div class="theme-feature-card bg-[#1a1a1a] border border-gray-800 rounded-lg p-6">
                 <div class="text-green-400 text-3xl mb-4">💾</div>
                 <h3 class="text-xl font-semibold mb-2">Save & Load</h3>
-                <p class="text-gray-400">Save your quantum circuits and load them later for continued development.</p>
+                <p class="theme-feature-text text-gray-400">Save your quantum circuits and load them later for continued development.</p>
             </div>
 
-            <div class="bg-[#1a1a1a] border border-gray-800 rounded-lg p-6">
+            <div class="theme-feature-card bg-[#1a1a1a] border border-gray-800 rounded-lg p-6">
                 <div class="text-green-400 text-3xl mb-4">🎨</div>
                 <h3 class="text-xl font-semibold mb-2">Theme Support</h3>
-                <p class="text-gray-400">Switch between light and dark themes for comfortable coding in any environment.</p>
+                <p class="theme-feature-text text-gray-400">Switch between light and dark themes for comfortable coding in any environment.</p>
             </div>
         </div>
 
         <!-- Quick Start Section -->
-        <div class="bg-[#1a1a1a] border border-gray-800 rounded-lg p-8 mb-8">
+        <div class="theme-quickstart-card bg-[#1a1a1a] border border-gray-800 rounded-lg p-8 mb-8">
             <h3 class="text-2xl font-semibold mb-4">Quick Start</h3>
-            <div class="space-y-4 text-gray-300">
+            <div class="space-y-4 theme-quickstart-text text-gray-300">
                 <div>
                     <p class="font-semibold text-green-400 mb-2">Option 1: Code Editor</p>
                     <p>1. Click "Open Compiler" to start coding</p>
@@ -116,51 +116,67 @@
         </div>
     </div>
 
+    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
     <script>
-        // Simple theme toggle for home page
-        const themeToggle = document.getElementById('themeToggle');
-        const themeIcon = document.getElementById('themeIcon');
-        
-        function loadTheme() {
-            const theme = localStorage.getItem('theme') || 'dark';
-            document.body.setAttribute('data-theme', theme);
-            updateThemeIcon(theme === 'dark');
-        }
-        
-        function updateThemeIcon(isDark) {
-            if (isDark) {
-                themeIcon.innerHTML = `
-                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"></path>
-                    </svg>
-                `;
-            } else {
-                themeIcon.innerHTML = `
-                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <circle cx="12" cy="12" r="4"></circle>
-                        <path d="M12 2v2"></path>
-                        <path d="M12 20v2"></path>
-                        <path d="m4.93 4.93 1.41 1.41"></path>
-                        <path d="m17.66 17.66 1.41 1.41"></path>
-                        <path d="M2 12h2"></path>
-                        <path d="M20 12h2"></path>
-                        <path d="m6.34 17.66-1.41 1.41"></path>
-                        <path d="m19.07 4.93-1.41 1.41"></path>
-                    </svg>
-                `;
+        // Theme management for home page
+        function applyHomeTheme(theme) {
+            const isDark = theme === 'dark';
+            const config = themeConfig[theme];
+            
+            // Apply base theme
+            applyTheme(theme);
+            
+            // Update feature cards
+            const featureCards = document.querySelectorAll('.theme-feature-card');
+            featureCards.forEach(card => {
+                card.className = card.className.replace(/bg-\[#1a1a1a\]|bg-gray-100/g, config.sidebar.bg);
+                card.className = card.className.replace(/border-gray-800|border-gray-300/g, config.sidebar.border);
+            });
+            
+            // Update feature text
+            const featureTexts = document.querySelectorAll('.theme-feature-text');
+            featureTexts.forEach(text => {
+                text.className = text.className.replace(/text-gray-400|text-gray-600/g, isDark ? 'text-gray-400' : 'text-gray-600');
+            });
+            
+            // Update quick start card
+            const quickstartCard = document.querySelector('.theme-quickstart-card');
+            if (quickstartCard) {
+                quickstartCard.className = quickstartCard.className.replace(/bg-\[#1a1a1a\]|bg-gray-100/g, config.sidebar.bg);
+                quickstartCard.className = quickstartCard.className.replace(/border-gray-800|border-gray-300/g, config.sidebar.border);
+            }
+            
+            // Update quick start text
+            const quickstartTexts = document.querySelectorAll('.theme-quickstart-text');
+            quickstartTexts.forEach(text => {
+                text.className = text.className.replace(/text-gray-300|text-gray-700/g, isDark ? 'text-gray-300' : 'text-gray-700');
+            });
+            
+            // Update hero section text
+            const heroSubtitle = document.querySelector('.text-gray-400');
+            if (heroSubtitle && heroSubtitle.textContent.includes('powerful')) {
+                heroSubtitle.className = heroSubtitle.className.replace(/text-gray-400|text-gray-600/g, isDark ? 'text-gray-400' : 'text-gray-600');
             }
         }
         
-        if (themeToggle) {
-            themeToggle.addEventListener('click', () => {
-                const currentTheme = localStorage.getItem('theme') || 'dark';
-                const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
-                localStorage.setItem('theme', newTheme);
-                loadTheme();
-            });
-        }
-        
-        loadTheme();
+        document.addEventListener('DOMContentLoaded', () => {
+            // Initialize theme icon
+            initializeThemeIcon();
+            
+            // Load and apply theme
+            const theme = localStorage.getItem('theme') || 'dark';
+            applyHomeTheme(theme);
+            
+            // Setup theme toggle
+            const themeToggle = document.getElementById('themeToggle');
+            if (themeToggle) {
+                themeToggle.addEventListener('click', () => {
+                    toggleTheme();
+                    const newTheme = localStorage.getItem('theme') || 'dark';
+                    applyHomeTheme(newTheme);
+                });
+            }
+        });
     </script>
 </body>
 

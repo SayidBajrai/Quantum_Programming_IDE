@@ -57,6 +57,11 @@ function initializeGatePalette() {
     
     gatePalette.innerHTML = '';
     
+    // Get current theme for section titles
+    const currentTheme = localStorage.getItem('theme') || 'dark';
+    const isDark = currentTheme === 'dark';
+    const titleTextClass = isDark ? 'text-gray-500' : 'text-gray-600';
+    
     // Single qubit gates
     const singleQubitGates = Object.entries(gateDefinitions).filter(([_, def]) => def.singleQubit);
     const multiQubitGates = Object.entries(gateDefinitions).filter(([_, def]) => !def.singleQubit);
@@ -65,7 +70,7 @@ function initializeGatePalette() {
     const singleSection = document.createElement('div');
     singleSection.className = 'mb-4';
     const singleTitle = document.createElement('div');
-    singleTitle.className = 'text-xs text-gray-500 mb-2 px-2';
+    singleTitle.className = `text-xs ${titleTextClass} mb-2 px-2`;
     singleTitle.textContent = 'Single Qubit';
     singleSection.appendChild(singleTitle);
     
@@ -78,7 +83,7 @@ function initializeGatePalette() {
     const multiSection = document.createElement('div');
     multiSection.className = 'mb-4';
     const multiTitle = document.createElement('div');
-    multiTitle.className = 'text-xs text-gray-500 mb-2 px-2';
+    multiTitle.className = `text-xs ${titleTextClass} mb-2 px-2`;
     multiTitle.textContent = 'Multi Qubit';
     multiSection.appendChild(multiTitle);
     
@@ -91,9 +96,34 @@ function initializeGatePalette() {
     gatePalette.appendChild(multiSection);
 }
 
+function updateGatePaletteTheme(isDark) {
+    if (!gatePalette) return;
+    
+    // Update section titles
+    const titles = gatePalette.querySelectorAll('.text-xs');
+    titles.forEach(title => {
+        title.className = title.className.replace(/text-gray-500|text-gray-600/g, isDark ? 'text-gray-500' : 'text-gray-600');
+    });
+    
+    // Update gate buttons
+    const gateButtons = gatePalette.querySelectorAll('.draggable-gate');
+    gateButtons.forEach(button => {
+        button.className = button.className.replace(/bg-gray-800|bg-gray-200/g, isDark ? 'bg-gray-800' : 'bg-gray-200');
+        button.className = button.className.replace(/hover:bg-gray-700|hover:bg-gray-300/g, isDark ? 'hover:bg-gray-700' : 'hover:bg-gray-300');
+        button.className = button.className.replace(/text-gray-100|text-gray-900/g, isDark ? 'text-gray-100' : 'text-gray-900');
+    });
+}
+
 function createGateButton(key, def) {
     const button = document.createElement('button');
-    button.className = 'w-full text-left px-3 py-2 rounded-lg bg-gray-800 hover:bg-gray-700 transition text-sm mb-2 draggable-gate';
+    // Get current theme for initial styling
+    const currentTheme = localStorage.getItem('theme') || 'dark';
+    const isDark = currentTheme === 'dark';
+    const bgClass = isDark ? 'bg-gray-800' : 'bg-gray-200';
+    const hoverClass = isDark ? 'hover:bg-gray-700' : 'hover:bg-gray-300';
+    const textClass = isDark ? 'text-gray-100' : 'text-gray-900';
+    
+    button.className = `w-full text-left px-3 py-2 rounded-lg ${bgClass} ${hoverClass} transition text-sm mb-2 draggable-gate ${textClass}`;
     button.setAttribute('draggable', 'true');
     button.setAttribute('data-gate', key);
     button.textContent = def.label;
@@ -137,30 +167,43 @@ function initializeCircuitBuilder() {
         point.y = e.clientY;
         const svgPoint = point.matrixTransform(svg.getScreenCTM().inverse());
         
+        // Check if dropped in delete zone (x < 100)
+        if (svgPoint.x < 100 && window.draggedExistingGate) {
+            // Delete the gate
+            removeGate(window.draggedExistingGate);
+            window.draggedExistingGate = null;
+            window.draggedComponent = null;
+            return;
+        }
+        
         // Calculate which qubit and column based on SVG coordinates
         const qubitHeight = 60;
         const columnWidth = 80;
         const qubit = Math.floor(svgPoint.y / qubitHeight);
-        const column = Math.max(0, Math.floor((svgPoint.x - 100) / columnWidth)) + 1; // Account for qubit labels
+        // Column calculation: line starts at 150, so column 0 starts at 150
+        const column = Math.max(0, Math.floor((svgPoint.x - 150) / columnWidth));
         
         if (qubit >= 0 && qubit < circuitState.qubits && column >= 0) {
             if (window.draggedExistingGate) {
-                // Moving an existing gate
-                const gate = circuitState.gates.find(g => g.id === window.draggedExistingGate);
-                if (gate) {
-                    const gateDef = gateDefinitions[gate.gate];
-                    const success = addGate(qubit, column, gate.gate, gateDef, window.draggedExistingGate);
-                    if (!success) {
-                        // If move failed, reset opacity and transform
-                        const gateGroup = svg.querySelector(`[data-gate-id="${window.draggedExistingGate}"]`);
-                        if (gateGroup) {
-                            gateGroup.style.opacity = '1';
-                            gateGroup.setAttribute('transform', '');
-                            gateGroup.style.pointerEvents = 'auto';
+                // Only handle full gate moves here (component moves are handled in mouseup)
+                if (window.draggedComponent === 'full') {
+                    // Moving an existing gate
+                    const gate = circuitState.gates.find(g => g.id === window.draggedExistingGate);
+                    if (gate) {
+                        const gateDef = gateDefinitions[gate.gate];
+                        const success = addGate(qubit, column, gate.gate, gateDef, window.draggedExistingGate);
+                        if (!success) {
+                            // If move failed, reset opacity and transform
+                            const gateGroup = svg.querySelector(`[data-gate-id="${window.draggedExistingGate}"]`);
+                            if (gateGroup) {
+                                gateGroup.style.opacity = '1';
+                                gateGroup.setAttribute('transform', '');
+                                gateGroup.style.pointerEvents = 'auto';
+                            }
                         }
                     }
                 }
-                window.draggedExistingGate = null;
+                // Don't reset draggedExistingGate here - let mouseup handle it
             } else if (draggedGate) {
                 // Adding a new gate from palette
                 addGate(qubit, column, draggedGate.key, draggedGate.def);
@@ -170,11 +213,25 @@ function initializeCircuitBuilder() {
             if (window.draggedExistingGate) {
                 const gateGroup = svg.querySelector(`[data-gate-id="${window.draggedExistingGate}"]`);
                 if (gateGroup) {
+                    // Only reset transform for full gate moves
+                    if (window.draggedComponent === 'full') {
+                        gateGroup.setAttribute('transform', '');
+                    }
                     gateGroup.style.opacity = '1';
-                    gateGroup.setAttribute('transform', '');
                     gateGroup.style.pointerEvents = 'auto';
                 }
+                // For component drags, re-render to reset visual
+                if (window.draggedComponent === 'control' || window.draggedComponent === 'target') {
+                    renderCircuit();
+                }
+                // Reset delete zone visual feedback
+                const deleteZone = svg.querySelector('#deleteZone');
+                if (deleteZone) {
+                    deleteZone.setAttribute('fill', 'rgba(239, 68, 68, 0.1)');
+                    deleteZone.setAttribute('stroke', 'rgba(239, 68, 68, 0.3)');
+                }
                 window.draggedExistingGate = null;
+                window.draggedComponent = null;
             }
         }
     });
@@ -193,14 +250,19 @@ function initializeCircuitBuilder() {
         }
         
         // If no gate is being dragged, allow clicking to remove gates
-        const rect = circuitBuilder.getBoundingClientRect();
-        const x = e.clientX - rect.left;
-        const y = e.clientY - rect.top;
+        const svg = circuitBuilder.querySelector('svg');
+        if (!svg) return;
+        
+        const point = svg.createSVGPoint();
+        point.x = e.clientX;
+        point.y = e.clientY;
+        const svgPoint = point.matrixTransform(svg.getScreenCTM().inverse());
         
         const qubitHeight = 60;
         const columnWidth = 80;
-        const qubit = Math.floor(y / qubitHeight);
-        const column = Math.max(0, Math.floor((x - 100) / columnWidth));
+        const qubit = Math.floor(svgPoint.y / qubitHeight);
+        // Column calculation: line starts at 150, so column 0 starts at 150
+        const column = Math.max(0, Math.floor((svgPoint.x - 150) / columnWidth));
         
         // Check if there's a gate at this position
         const gateAtPosition = circuitState.gates.find(
@@ -214,10 +276,15 @@ function initializeCircuitBuilder() {
     
     // Initialize draggedExistingGate
     window.draggedExistingGate = null;
+    window.draggedComponent = null; // 'control', 'target', or 'full'
     window.dragOffsetX = 0;
     window.dragOffsetY = 0;
     window.dragGateX = 0;
     window.dragGateY = 0;
+    window.dragControlX = 0;
+    window.dragControlY = 0;
+    window.dragTargetX = 0;
+    window.dragTargetY = 0;
     
     // Global mousemove handler to update gate position during drag
     const globalMouseMoveHandler = (e) => {
@@ -228,18 +295,101 @@ function initializeCircuitBuilder() {
             const gateGroup = svg.querySelector(`[data-gate-id="${window.draggedExistingGate}"]`);
             if (!gateGroup) return;
             
+            const gate = circuitState.gates.find(g => g.id === window.draggedExistingGate);
+            if (!gate) return;
+            
+            const gateDef = gateDefinitions[gate.gate];
+            
             // Convert mouse coordinates to SVG coordinates
             const point = svg.createSVGPoint();
             point.x = e.clientX;
             point.y = e.clientY;
             const svgPoint = point.matrixTransform(svg.getScreenCTM().inverse());
             
-            // Calculate new position relative to original
-            const newX = svgPoint.x - window.dragOffsetX;
-            const newY = svgPoint.y - window.dragOffsetY;
+            // Check if dragging to delete zone (x < 100)
+            const isInDeleteZone = svgPoint.x < 100;
             
-            // Apply transform to move gate
-            gateGroup.setAttribute('transform', `translate(${newX - window.dragGateX}, ${newY - window.dragGateY})`);
+            // Update delete zone visual feedback
+            const deleteZone = svg.querySelector('#deleteZone');
+            if (deleteZone) {
+                if (isInDeleteZone) {
+                    deleteZone.setAttribute('fill', 'rgba(239, 68, 68, 0.3)');
+                    deleteZone.setAttribute('stroke', 'rgba(239, 68, 68, 0.8)');
+                    gateGroup.style.opacity = '0.3'; // Make gate more transparent when in delete zone
+                } else {
+                    deleteZone.setAttribute('fill', 'rgba(239, 68, 68, 0.1)');
+                    deleteZone.setAttribute('stroke', 'rgba(239, 68, 68, 0.3)');
+                    gateGroup.style.opacity = '0.5'; // Normal drag opacity
+                }
+            }
+            
+            if (window.draggedComponent === 'control' && !gateDef.singleQubit) {
+                // Move control dot in both x and y-direction
+                const newControlX = svgPoint.x - window.dragOffsetX;
+                const newControlY = svgPoint.y - window.dragOffsetY;
+                const controlDot = gateGroup.querySelector('[data-gate-component="control"]');
+                const controlLine = gateGroup.querySelector('[data-gate-component="line"]');
+                
+                if (controlDot) {
+                    controlDot.setAttribute('cx', newControlX.toString());
+                    controlDot.setAttribute('cy', newControlY.toString());
+                }
+                if (controlLine) {
+                    // Get target position from the target rect element (current visual position)
+                    const targetRect = gateGroup.querySelector('[data-gate-component="target"]');
+                    let targetX = 150 + gate.column * 80 + 40;
+                    let targetY = gate.targetQubit * 60 + 30;
+                    if (targetRect) {
+                        // Use the visual position of the target rect
+                        const targetRectX = parseFloat(targetRect.getAttribute('x')) + 25; // Center of rect
+                        const targetRectY = parseFloat(targetRect.getAttribute('y')) + 20; // Center of rect
+                        targetX = targetRectX;
+                        targetY = targetRectY;
+                    }
+                    controlLine.setAttribute('x1', newControlX.toString());
+                    controlLine.setAttribute('y1', newControlY.toString());
+                    controlLine.setAttribute('x2', targetX.toString());
+                    controlLine.setAttribute('y2', targetY.toString());
+                }
+            } else if (window.draggedComponent === 'target' && !gateDef.singleQubit) {
+                // Move target rect in both x and y-direction
+                const newTargetX = svgPoint.x - window.dragOffsetX;
+                const newTargetY = svgPoint.y - window.dragOffsetY;
+                const targetRect = gateGroup.querySelector('[data-gate-component="target"]');
+                const targetText = gateGroup.querySelector('[data-gate-component="target-label"]');
+                const controlLine = gateGroup.querySelector('[data-gate-component="line"]');
+                
+                if (targetRect) {
+                    targetRect.setAttribute('x', (newTargetX - 25).toString());
+                    targetRect.setAttribute('y', (newTargetY - 20).toString());
+                }
+                if (targetText) {
+                    targetText.setAttribute('x', newTargetX.toString());
+                    targetText.setAttribute('y', (newTargetY + 5).toString());
+                }
+                if (controlLine) {
+                    // Get control position from the control dot element (current visual position)
+                    const controlDot = gateGroup.querySelector('[data-gate-component="control"]');
+                    let controlX = 150 + gate.column * 80 + 40;
+                    let controlY = gate.qubit * 60 + 30;
+                    if (controlDot) {
+                        // Use the visual position of the control dot
+                        controlX = parseFloat(controlDot.getAttribute('cx'));
+                        controlY = parseFloat(controlDot.getAttribute('cy'));
+                    }
+                    controlLine.setAttribute('x1', controlX.toString());
+                    controlLine.setAttribute('y1', controlY.toString());
+                    controlLine.setAttribute('x2', newTargetX.toString());
+                    controlLine.setAttribute('y2', newTargetY.toString());
+                }
+            } else if (window.draggedComponent === 'full') {
+                // Move entire gate (single-qubit gates)
+                const newX = svgPoint.x - window.dragOffsetX;
+                const newY = svgPoint.y - window.dragOffsetY;
+                
+                // Apply transform to move gate
+                gateGroup.setAttribute('transform', `translate(${newX - window.dragGateX}, ${newY - window.dragGateY})`);
+            }
         }
     };
     
@@ -249,14 +399,25 @@ function initializeCircuitBuilder() {
             const svg = circuitBuilder.querySelector('svg');
             if (!svg) {
                 window.draggedExistingGate = null;
+                window.draggedComponent = null;
                 return;
             }
             
             const gateGroup = svg.querySelector(`[data-gate-id="${window.draggedExistingGate}"]`);
             if (!gateGroup) {
                 window.draggedExistingGate = null;
+                window.draggedComponent = null;
                 return;
             }
+            
+            const gate = circuitState.gates.find(g => g.id === window.draggedExistingGate);
+            if (!gate) {
+                window.draggedExistingGate = null;
+                window.draggedComponent = null;
+                return;
+            }
+            
+            const gateDef = gateDefinitions[gate.gate];
             
             // Calculate drop position based on mouse coordinates
             const point = svg.createSVGPoint();
@@ -264,23 +425,62 @@ function initializeCircuitBuilder() {
             point.y = e.clientY;
             const svgPoint = point.matrixTransform(svg.getScreenCTM().inverse());
             
+            // Check if dropped in delete zone (x < 100)
+            if (svgPoint.x < 100) {
+                // Delete the gate
+                removeGate(gate.id);
+                window.draggedExistingGate = null;
+                window.draggedComponent = null;
+                return;
+            }
+            
             // Calculate which qubit and column
             const qubitHeight = 60;
             const columnWidth = 80;
             const qubit = Math.floor(svgPoint.y / qubitHeight);
-            const column = Math.max(0, Math.floor((svgPoint.x - 100) / columnWidth)) + 1; // Account for qubit labels
+            // Column calculation: line starts at 150, so column 0 starts at 150
+            const column = Math.max(0, Math.floor((svgPoint.x - 150) / columnWidth));
             
             // Check if drop is within valid area
             if (qubit >= 0 && qubit < circuitState.qubits && column >= 0) {
-                // Try to move the gate to new position
-                const gate = circuitState.gates.find(g => g.id === window.draggedExistingGate);
-                if (gate) {
-                    const gateDef = gateDefinitions[gate.gate];
-                    const success = addGate(qubit, column, gate.gate, gateDef, window.draggedExistingGate);
-                    if (success) {
-                        // Gate moved successfully - renderCircuit will update the display
-                        // Reset transform and opacity will happen in renderCircuit
+                if (window.draggedComponent === 'control' && !gateDef.singleQubit) {
+                    // Update control qubit and column
+                    if (qubit !== gate.targetQubit) {
+                        // Check if new position is occupied
+                        if (!isPositionOccupied(qubit, column, gate.targetQubit, gate.id)) {
+                            gate.qubit = qubit;
+                            gate.column = column;
+                            renderCircuit();
+                            updateQASMCode();
+                        } else {
+                            // Position occupied - reset visual
+                            renderCircuit();
+                        }
                     } else {
+                        // Can't have control and target on same qubit - reset visual
+                        renderCircuit();
+                    }
+                } else if (window.draggedComponent === 'target' && !gateDef.singleQubit) {
+                    // Update target qubit and column
+                    if (qubit !== gate.qubit) {
+                        // Check if new position is occupied
+                        if (!isPositionOccupied(gate.qubit, column, qubit, gate.id)) {
+                            gate.targetQubit = qubit;
+                            gate.column = column;
+                            renderCircuit();
+                            updateQASMCode();
+                        } else {
+                            // Position occupied - reset visual
+                            renderCircuit();
+                        }
+                    } else {
+                        // Can't have control and target on same qubit - reset visual
+                        renderCircuit();
+                    }
+                } else if (window.draggedComponent === 'full') {
+                    // Move entire gate (single-qubit gates)
+                    const success = addGate(qubit, column, gate.gate, gateDef, window.draggedExistingGate);
+                    if (!success) {
                         // Move failed - reset to original position
                         gateGroup.setAttribute('transform', '');
                         gateGroup.style.opacity = '1';
@@ -289,12 +489,26 @@ function initializeCircuitBuilder() {
                 }
             } else {
                 // Dropped outside valid area - reset to original position
-                gateGroup.setAttribute('transform', '');
+                if (window.draggedComponent === 'full') {
+                    gateGroup.setAttribute('transform', '');
+                }
                 gateGroup.style.opacity = '1';
                 gateGroup.style.pointerEvents = 'auto';
+                // For component drags, just re-render to reset visual
+                if (window.draggedComponent === 'control' || window.draggedComponent === 'target') {
+                    renderCircuit();
+                }
+            }
+            
+            // Reset delete zone visual feedback
+            const deleteZone = svg.querySelector('#deleteZone');
+            if (deleteZone) {
+                deleteZone.setAttribute('fill', 'rgba(239, 68, 68, 0.1)');
+                deleteZone.setAttribute('stroke', 'rgba(239, 68, 68, 0.3)');
             }
             
             window.draggedExistingGate = null;
+            window.draggedComponent = null;
         }
     };
     
@@ -420,20 +634,50 @@ function renderCircuit() {
         ? Math.max(...circuitState.gates.map(g => g.column)) + 1 
         : 0;
     const numColumns = Math.max(maxColumn, 5); // Minimum 5 columns
+    const lineWidth = numColumns * 80;
+    const svgWidth = lineWidth + 150;
     
     // Create SVG for circuit visualization
     const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-    svg.setAttribute('width', '100%');
+    svg.setAttribute('width', svgWidth.toString());
     svg.setAttribute('height', `${circuitState.qubits * 60}`);
-    svg.setAttribute('viewBox', `0 0 ${numColumns * 80} ${circuitState.qubits * 60}`);
+    svg.setAttribute('viewBox', `0 0 ${svgWidth} ${circuitState.qubits * 60}`);
     svg.style.background = 'transparent';
+    
+    // Draw delete zone indicator (left side, x < 100 area)
+    const deleteZone = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+    deleteZone.setAttribute('x', '0');
+    deleteZone.setAttribute('y', '0');
+    deleteZone.setAttribute('width', '100');
+    deleteZone.setAttribute('height', `${circuitState.qubits * 60}`);
+    deleteZone.setAttribute('fill', 'rgba(239, 68, 68, 0.1)');
+    deleteZone.setAttribute('stroke', 'rgba(239, 68, 68, 0.3)');
+    deleteZone.setAttribute('stroke-width', '2');
+    deleteZone.setAttribute('stroke-dasharray', '5,5');
+    deleteZone.setAttribute('id', 'deleteZone');
+    deleteZone.style.pointerEvents = 'none';
+    svg.appendChild(deleteZone);
+    
+    // Draw delete icon/text in delete zone
+    const deleteText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+    deleteText.setAttribute('x', '50');
+    deleteText.setAttribute('y', `${circuitState.qubits * 30}`);
+    deleteText.setAttribute('fill', 'rgba(239, 68, 68, 0.6)');
+    deleteText.setAttribute('font-size', '14');
+    deleteText.setAttribute('font-family', 'monospace');
+    deleteText.setAttribute('font-weight', 'bold');
+    deleteText.setAttribute('text-anchor', 'middle');
+    deleteText.setAttribute('transform', `rotate(-90 50 ${circuitState.qubits * 30})`);
+    deleteText.textContent = 'DELETE';
+    deleteText.style.pointerEvents = 'none';
+    svg.appendChild(deleteText);
     
     // Draw qubit lines
     for (let q = 0; q < circuitState.qubits; q++) {
         const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-        line.setAttribute('x1', '0');
+        line.setAttribute('x1', '150');
         line.setAttribute('y1', (q * 60 + 30).toString());
-        line.setAttribute('x2', (numColumns * 80).toString());
+        line.setAttribute('x2', (150 + lineWidth).toString());
         line.setAttribute('y2', (q * 60 + 30).toString());
         line.setAttribute('stroke', '#4b5563');
         line.setAttribute('stroke-width', '2');
@@ -441,7 +685,7 @@ function renderCircuit() {
         
         // Qubit label
         const label = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-        label.setAttribute('x', '-30');
+        label.setAttribute('x', '120');
         label.setAttribute('y', (q * 60 + 35).toString());
         label.setAttribute('fill', '#9ca3af');
         label.setAttribute('font-size', '12');
@@ -453,7 +697,8 @@ function renderCircuit() {
     // Draw gates
     circuitState.gates.forEach(gate => {
         const gateDef = gateDefinitions[gate.gate];
-        const x = gate.column * 80 + 40;
+        // Line starts at 150, so gate x = 150 + column * 80 + 40
+        const x = 150 + gate.column * 80 + 40;
         const y = gate.qubit * 60 + 30;
         
         // Create a group for the gate to make it draggable
@@ -508,9 +753,11 @@ function renderCircuit() {
             controlDot.setAttribute('fill', gateDef.color);
             controlDot.setAttribute('stroke', '#ffffff');
             controlDot.setAttribute('stroke-width', '2');
+            controlDot.setAttribute('data-gate-component', 'control');
+            controlDot.style.cursor = 'move'; // Allow movement in both directions
             gateGroup.appendChild(controlDot);
             
-            // Control line
+            // Control line (connects control and target)
             const controlLine = document.createElementNS('http://www.w3.org/2000/svg', 'line');
             controlLine.setAttribute('x1', x.toString());
             controlLine.setAttribute('y1', controlY.toString());
@@ -518,6 +765,7 @@ function renderCircuit() {
             controlLine.setAttribute('y2', targetY.toString());
             controlLine.setAttribute('stroke', gateDef.color);
             controlLine.setAttribute('stroke-width', '2');
+            controlLine.setAttribute('data-gate-component', 'line');
             gateGroup.appendChild(controlLine);
             
             // Target gate
@@ -530,6 +778,8 @@ function renderCircuit() {
             targetRect.setAttribute('stroke', '#ffffff');
             targetRect.setAttribute('stroke-width', '2');
             targetRect.setAttribute('rx', '4');
+            targetRect.setAttribute('data-gate-component', 'target');
+            targetRect.style.cursor = 'move'; // Allow movement in both directions
             gateGroup.appendChild(targetRect);
             
             // Target label
@@ -542,31 +792,84 @@ function renderCircuit() {
             targetText.setAttribute('font-weight', 'bold');
             targetText.setAttribute('text-anchor', 'middle');
             targetText.textContent = gateDef.label;
+            targetText.setAttribute('data-gate-component', 'target-label');
+            targetText.style.pointerEvents = 'none'; // Don't interfere with dragging
             gateGroup.appendChild(targetText);
+            
+            // Make control dot independently draggable (both x and y-direction)
+            controlDot.addEventListener('mousedown', (e) => {
+                e.stopPropagation();
+                e.preventDefault();
+                
+                window.draggedExistingGate = gate.id;
+                window.draggedComponent = 'control';
+                
+                // Calculate offset from mouse to control dot center in SVG coordinates
+                const point = svg.createSVGPoint();
+                point.x = e.clientX;
+                point.y = e.clientY;
+                const svgPoint = point.matrixTransform(svg.getScreenCTM().inverse());
+                
+                window.dragOffsetX = svgPoint.x - x;
+                window.dragOffsetY = svgPoint.y - controlY;
+                window.dragControlX = x;
+                window.dragControlY = controlY;
+                
+                // Make gate semi-transparent
+                gateGroup.style.opacity = '0.5';
+                gateGroup.style.pointerEvents = 'none';
+            });
+            
+            // Make target rect independently draggable (both x and y-direction)
+            targetRect.addEventListener('mousedown', (e) => {
+                e.stopPropagation();
+                e.preventDefault();
+                
+                window.draggedExistingGate = gate.id;
+                window.draggedComponent = 'target';
+                
+                // Calculate offset from mouse to target rect center in SVG coordinates
+                const point = svg.createSVGPoint();
+                point.x = e.clientX;
+                point.y = e.clientY;
+                const svgPoint = point.matrixTransform(svg.getScreenCTM().inverse());
+                
+                window.dragOffsetX = svgPoint.x - x;
+                window.dragOffsetY = svgPoint.y - targetY;
+                window.dragTargetX = x;
+                window.dragTargetY = targetY;
+                
+                // Make gate semi-transparent
+                gateGroup.style.opacity = '0.5';
+                gateGroup.style.pointerEvents = 'none';
+            });
         }
         
-        // Make gate draggable
-        gateGroup.addEventListener('mousedown', (e) => {
-            e.stopPropagation();
-            e.preventDefault();
-            
-            window.draggedExistingGate = gate.id;
-            
-            // Calculate offset from mouse to gate center in SVG coordinates
-            const point = svg.createSVGPoint();
-            point.x = e.clientX;
-            point.y = e.clientY;
-            const svgPoint = point.matrixTransform(svg.getScreenCTM().inverse());
-            
-            window.dragOffsetX = svgPoint.x - x;
-            window.dragOffsetY = svgPoint.y - y;
-            window.dragGateX = x;
-            window.dragGateY = y;
-            
-            // Make gate semi-transparent
-            gateGroup.style.opacity = '0.5';
-            gateGroup.style.pointerEvents = 'none';
-        });
+        // Make single-qubit gate draggable (existing behavior)
+        if (gateDef.singleQubit) {
+            gateGroup.addEventListener('mousedown', (e) => {
+                e.stopPropagation();
+                e.preventDefault();
+                
+                window.draggedExistingGate = gate.id;
+                window.draggedComponent = 'full'; // Full gate drag
+                
+                // Calculate offset from mouse to gate center in SVG coordinates
+                const point = svg.createSVGPoint();
+                point.x = e.clientX;
+                point.y = e.clientY;
+                const svgPoint = point.matrixTransform(svg.getScreenCTM().inverse());
+                
+                window.dragOffsetX = svgPoint.x - x;
+                window.dragOffsetY = svgPoint.y - y;
+                window.dragGateX = x;
+                window.dragGateY = y;
+                
+                // Make gate semi-transparent
+                gateGroup.style.opacity = '0.5';
+                gateGroup.style.pointerEvents = 'none';
+            });
+        }
         
         svg.appendChild(gateGroup);
     });
@@ -737,6 +1040,7 @@ function initializeMonacoEditor() {
         
         // Make it accessible globally for app.js functions
         window.monacoEditor = circuitBuilderMonacoEditor;
+        window.circuitBuilderMonacoEditor = circuitBuilderMonacoEditor;
         
         // Update initial code
         updateQASMCode();
@@ -936,60 +1240,97 @@ function setupEventListeners() {
         });
     }
     
-    // Save button - reuse from app.js if available
+    // Save button - save generated QASM code
     const saveBtn = document.getElementById('saveBtn');
     if (saveBtn) {
         // Remove any existing listeners
         const newSaveBtn = saveBtn.cloneNode(true);
         saveBtn.parentNode.replaceChild(newSaveBtn, saveBtn);
         
-        newSaveBtn.addEventListener('click', (e) => {
+        newSaveBtn.addEventListener('click', async (e) => {
             e.stopPropagation();
             e.preventDefault();
-            // Use circuit builder's editor for save
-            if (typeof saveFile === 'function') {
-                // Temporarily set monacoEditor to circuit builder's editor
-                const originalMonaco = window.monacoEditor;
-                window.monacoEditor = circuitBuilderMonacoEditor;
-                try {
-                    saveFile();
-                } finally {
-                    window.monacoEditor = originalMonaco;
-                }
-            } else {
-                // Fallback: custom save function
-                const code = circuitBuilderMonacoEditor ? circuitBuilderMonacoEditor.getValue().trim() : '';
-                if (!code) {
-                    alert('Please enter some OpenQASM 3 code to save');
-                    return;
-                }
+            
+            // Get code from circuit builder's editor
+            const code = circuitBuilderMonacoEditor ? circuitBuilderMonacoEditor.getValue().trim() : '';
+            
+            if (!code) {
+                alert('Please generate some OpenQASM 3 code to save');
+                return;
+            }
+            
+            // Circuit builder always generates OpenQASM 3
+            const language = 'openqasm3';
+            const fileExtension = '.qasm';
+            
+            // Prompt for filename
+            const extensionHint = 'without .qasm extension';
+            const filename = prompt(`Enter a filename for your circuit (${extensionHint}):`);
+            
+            if (!filename || !filename.trim()) {
+                return; // User cancelled or entered empty name
+            }
+            
+            let finalFilename = filename.trim();
+            
+            // Check if file exists
+            try {
+                const checkResponse = await fetch('/check-file-exists', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ filename: finalFilename })
+                });
                 
-                const filename = prompt('Enter a filename for your circuit (without .qasm extension):');
-                if (!filename || !filename.trim()) {
-                    return;
-                }
+                const checkData = await checkResponse.json();
                 
-                fetch('/save-file', {
+                if (checkData.exists) {
+                    const overwrite = confirm(`File "${finalFilename}${fileExtension}" already exists. Do you want to overwrite it?`);
+                    if (!overwrite) {
+                        return; // User cancelled overwrite
+                    }
+                }
+            } catch (error) {
+                console.error('Error checking file existence:', error);
+                // Continue anyway
+            }
+            
+            // Save the file
+            try {
+                newSaveBtn.disabled = true;
+                const originalHTML = newSaveBtn.innerHTML;
+                newSaveBtn.innerHTML = 'Saving...';
+                
+                const response = await fetch('/save-file', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
                     },
                     body: JSON.stringify({
-                        filename: filename.trim(),
-                        code: code
+                        filename: finalFilename,
+                        code: code,
+                        language: language  // Pass language so backend can set correct extension
                     })
-                })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        alert(data.message || 'File saved successfully!');
-                    } else {
-                        alert(`Error saving file: ${data.error || 'Unknown error'}`);
-                    }
-                })
-                .catch(error => {
-                    alert(`Error saving file: ${error.message}`);
                 });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    alert(data.message || 'File saved successfully!');
+                } else {
+                    alert(`Error saving file: ${data.error || 'Unknown error'}`);
+                }
+            } catch (error) {
+                console.error('Error saving file:', error);
+                alert(`Error saving file: ${error.message}`);
+            } finally {
+                newSaveBtn.disabled = false;
+                // Restore button icon
+                const currentTheme = localStorage.getItem('theme') || 'dark';
+                const isDark = currentTheme === 'dark';
+                const strokeColor = isDark ? '#ffffff' : '#000000';
+                newSaveBtn.innerHTML = `<svg id="saveBtnIcon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="${strokeColor}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"></path><path d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7"></path><path d="M7 3v4a1 1 0 0 0 1 1h7"></path></svg>`;
             }
         });
     }
