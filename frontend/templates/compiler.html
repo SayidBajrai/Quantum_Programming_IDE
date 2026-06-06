@@ -119,6 +119,10 @@
                             </select>
                         </div>
                         <div class="flex items-center space-x-4">
+                            <label id="keepStructureLabel" class="hidden flex items-center space-x-2" title="Preserve gate/def structure in generated QASM">
+                                <input type="checkbox" id="keepStructureCheckbox" class="rounded bg-gray-800 border-gray-700">
+                                <span class="text-sm text-gray-400">Structured QASM</span>
+                            </label>
                             <label class="flex items-center space-x-2">
                                 <span class="text-sm text-gray-400">Shots:</span>
                                 <input type="number" id="shotsInput" value="1024" min="1" max="100000"
@@ -132,7 +136,8 @@
                     </div>
 
                     <div
-                        class="flex-1 border border-gray-800 rounded-lg overflow-hidden bg-black theme-editor-container">
+                        class="flex-1 border border-gray-800 rounded-lg overflow-hidden bg-black theme-editor-container relative">
+                        <div id="syntaxErrorBadge" class="hidden absolute top-2 right-2 z-10 px-2 py-1 text-xs rounded border"></div>
                         <div id="codeEditor" style="width: 100%; height: 100%;"></div>
                     </div>
                 </div>
@@ -145,11 +150,17 @@
 
                 <!-- Right Section (tabbed: Circuit Diagram & Output) -->
                 <div id="rightSection" class="flex flex-col min-h-0" style="width: 50%; min-width: 200px;">
-                    <div id="rightSectionTabs" class="flex border-b border-gray-800 bg-[#1a1a1a] shrink-0">
-                        <button type="button" data-tab="circuit" class="right-tab active px-4 py-2 text-sm font-medium">
+                    <div id="rightSectionTabs" class="flex border-b border-gray-800 bg-[#1a1a1a] shrink-0 overflow-x-auto">
+                        <button type="button" data-tab="circuit" class="right-tab active px-4 py-2 text-sm font-medium whitespace-nowrap">
                             Circuit Diagram
                         </button>
-                        <button type="button" data-tab="output" class="right-tab px-4 py-2 text-sm font-medium">
+                        <button type="button" data-tab="qasm" id="qasmTab" class="right-tab quanta-only hidden px-4 py-2 text-sm font-medium whitespace-nowrap">
+                            Generated QASM
+                        </button>
+                        <button type="button" data-tab="debug" id="debugTab" class="right-tab quanta-only hidden px-4 py-2 text-sm font-medium whitespace-nowrap">
+                            Debug Output
+                        </button>
+                        <button type="button" data-tab="output" class="right-tab px-4 py-2 text-sm font-medium whitespace-nowrap">
                             Simulation Results
                         </button>
                     </div>
@@ -189,6 +200,77 @@
                                         <div class="text-xs mt-2 text-gray-600">Start typing to see real-time preview</div>
                                     </div>
                                 </div>
+                            </div>
+                        </div>
+
+                        <!-- Generated QASM Section (Quanta only) -->
+                        <div id="qasmSection" class="tab-panel hidden flex flex-col h-full min-h-0" data-tab-panel="qasm">
+                            <div class="mb-0 flex items-center justify-between p-4 shrink-0 gap-2 flex-wrap">
+                                <div class="flex items-center space-x-2">
+                                    <button id="copyQasmBtn" type="button"
+                                        class="px-3 py-0 bg-gray-800 hover:bg-gray-700 rounded-lg text-sm transition text-gray-100"
+                                        title="Copy QASM to clipboard">Copy</button>
+                                    <button id="downloadQasmBtn" type="button"
+                                        class="px-3 py-0 bg-gray-800 hover:bg-gray-700 rounded-lg text-sm transition text-gray-100"
+                                        title="Download QASM file">Download</button>
+                                </div>
+                                <div class="flex items-center space-x-3">
+                                    <label class="flex items-center space-x-2 text-sm text-gray-400" title="Show flattened vs structured QASM side by side">
+                                        <input type="checkbox" id="compareQasmCheckbox" class="rounded bg-gray-800 border-gray-700">
+                                        <span>Compare modes</span>
+                                    </label>
+                                    <div id="qasmStatus" class="text-sm text-gray-400">Ready</div>
+                                </div>
+                            </div>
+                            <div id="qasmSingleView" class="flex-1 min-h-0 border border-gray-800 rounded-lg overflow-auto bg-black p-4 mx-4 mb-4">
+                                <pre id="generatedQasm" class="font-mono text-xs text-green-400 whitespace-pre-wrap break-words m-0">// Generated QASM will appear here when editing Quanta code</pre>
+                            </div>
+                            <div id="qasmCompareView" class="hidden flex-1 min-h-0 grid grid-cols-2 gap-2 mx-4 mb-4">
+                                <div class="flex flex-col min-h-0 border border-gray-800 rounded-lg overflow-hidden">
+                                    <div class="text-xs text-gray-500 px-3 py-1 bg-gray-900 shrink-0">Flattened</div>
+                                    <div class="flex-1 min-h-0 overflow-auto bg-black p-3">
+                                        <pre id="generatedQasmFlat" class="font-mono text-xs text-green-400 whitespace-pre-wrap break-words m-0"></pre>
+                                    </div>
+                                </div>
+                                <div class="flex flex-col min-h-0 border border-gray-800 rounded-lg overflow-hidden">
+                                    <div class="text-xs text-gray-500 px-3 py-1 bg-gray-900 shrink-0">Structured</div>
+                                    <div class="flex-1 min-h-0 overflow-auto bg-black p-3">
+                                        <pre id="generatedQasmStructured" class="font-mono text-xs text-cyan-400 whitespace-pre-wrap break-words m-0"></pre>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Debug Output Section (Quanta only) -->
+                        <div id="debugSection" class="tab-panel hidden flex flex-col h-full min-h-0 bg-[#1a1a1a] p-4 overflow-hidden" data-tab-panel="debug">
+                            <div class="flex items-center justify-between mb-4 shrink-0">
+                                <button id="debugBtn"
+                                    class="px-3 py-0 bg-gray-800 hover:bg-gray-700 rounded-lg font-semibold transition text-gray-100"
+                                    title="Run statevector debug (Print output)">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"></path></svg>
+                                </button>
+                                <div id="debugStatus" class="text-sm text-gray-400">Simulator-only debug</div>
+                            </div>
+                            <div class="mb-2 shrink-0">
+                                <details class="text-xs text-gray-500">
+                                    <summary class="cursor-pointer hover:text-gray-300 select-none">Print format cheat sheet</summary>
+                                    <div class="mt-2 p-3 bg-gray-900 border border-gray-800 rounded-lg space-y-1 font-mono text-gray-400">
+                                        <div><button type="button" class="debug-snippet hover:text-green-400 text-left" data-snippet='Print(q)'>Print(q)</button> — symbolic state</div>
+                                        <div><button type="button" class="debug-snippet hover:text-green-400 text-left" data-snippet='Print(q, ":prob")'>Print(q, ":prob")</button> — probabilities</div>
+                                        <div><button type="button" class="debug-snippet hover:text-green-400 text-left" data-snippet='Print(q, ":bloch")'>Print(q, ":bloch")</button> — Bloch vector</div>
+                                        <div><button type="button" class="debug-snippet hover:text-green-400 text-left" data-snippet='Print(q, ":entropy")'>Print(q, ":entropy")</button> — von Neumann entropy</div>
+                                        <div><button type="button" class="debug-snippet hover:text-green-400 text-left" data-snippet='Print(q, ":circuit")'>Print(q, ":circuit")</button> — gate trace</div>
+                                        <div><button type="button" class="debug-snippet hover:text-green-400 text-left" data-snippet='Print(f"{q:summary}")'>Print(f"{q:summary}")</button> — f-string summary</div>
+                                        <div class="pt-1 text-gray-600">Use double-quoted f-strings only. Ctrl+Shift+Enter runs debug.</div>
+                                    </div>
+                                </details>
+                            </div>
+                            <div id="debugErrorDisplay" class="hidden mb-4 p-4 bg-red-900/30 border border-red-700 rounded-lg shrink-0">
+                                <div class="font-semibold text-red-400 mb-2">Debug Error</div>
+                                <div id="debugErrorMessage" class="text-sm text-red-300 break-words"></div>
+                            </div>
+                            <div class="flex-1 min-h-0 border border-gray-800 rounded-lg overflow-auto bg-black">
+                                <div id="debugOutput" class="font-mono text-sm text-gray-300 whitespace-pre-wrap break-words p-4 m-0 min-h-full">Run debug to see Print() output here</div>
                             </div>
                         </div>
 
@@ -258,6 +340,9 @@
         </div>
     </div>
 
+    <script src="{{ url_for('static', filename='js/quanta-intellisense.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/quanta-doc-template.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/bloch-sphere.js') }}"></script>
     <script src="{{ url_for('static', filename='js/app.js') }}"></script>
 </body>
 

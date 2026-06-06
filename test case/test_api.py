@@ -77,6 +77,62 @@ cx q[0], q[1];
         with self.assertRaises(Exception):
             compile_and_simulate(code, shots=64, language="openqasm3")
 
+    def test_quanta_bell_state_simulation(self):
+        code = read_sample("bell.qta")
+        result = compile_and_simulate(code, shots=256, language="quanta")
+        self.assertIn("counts", result)
+        self.assertEqual(result["qubits"], 2)
+        self.assertEqual(sum(result["counts"].values()), 256)
+
+
+class QuantaHelperTests(unittest.TestCase):
+    def test_compile_quanta_to_qasm(self):
+        from compiler.quanta_helpers import compile_quanta_to_qasm
+
+        code = read_sample("bell.qta")
+        qasm = compile_quanta_to_qasm(code)
+        self.assertIn("OPENQASM 3", qasm)
+        self.assertIn("qubit", qasm)
+
+    def test_check_quanta_valid(self):
+        from compiler.quanta_helpers import check_quanta
+
+        code = read_sample("bell.qta")
+        result = check_quanta(code)
+        self.assertTrue(result["valid"])
+
+    def test_check_quanta_invalid(self):
+        from compiler.quanta_helpers import check_quanta
+
+        result = check_quanta("qbit q\nH(unknown)")
+        self.assertFalse(result["valid"])
+        self.assertIn("error", result)
+
+    def test_debug_prints_superposition(self):
+        from compiler.quanta_helpers import get_debug_prints
+
+        code = read_sample("superposition.qta")
+        output = get_debug_prints(code)
+        self.assertTrue("|0" in output and "|1" in output)
+        self.assertIn("1/", output)
+
+    def test_run_quanta_bell(self):
+        from compiler.quanta_helpers import run_quanta
+
+        code = read_sample("bell.qta")
+        result = run_quanta(code, shots=128)
+        self.assertIn("counts", result)
+        self.assertEqual(sum(result["counts"].values()), 128)
+
+    def test_get_all_function_docs(self):
+        from compiler.quanta_helpers import get_all_function_docs
+
+        docs = get_all_function_docs()
+        self.assertTrue(len(docs) > 0)
+        names = {d["name"] for d in docs}
+        self.assertIn("Print", names)
+        self.assertIn("QAdd", names)
+
 
 class HttpApiTests(unittest.TestCase):
     @classmethod
@@ -103,6 +159,10 @@ class HttpApiTests(unittest.TestCase):
         self.assertIn('id="rightSection"', html)
         self.assertIn('data-tab="output"', html)
         self.assertIn("Simulation Results", html)
+        self.assertIn('data-tab="qasm"', html)
+        self.assertIn('data-tab="debug"', html)
+        self.assertIn("Generated QASM", html)
+        self.assertIn("Debug Output", html)
 
     def test_circuit_page_has_tabbed_right_section(self):
         with urllib.request.urlopen(f"{BASE_URL}/circuit", timeout=10) as response:
@@ -125,6 +185,63 @@ class HttpApiTests(unittest.TestCase):
         self.assertEqual(status, 200)
         self.assertTrue(data.get("success"))
         self.assertTrue(data.get("svg") or data.get("text"))
+
+    def test_compile_quanta_bell(self):
+        code = read_sample("bell.qta")
+        status, data = http_json(
+            "POST", "/compile", {"code": code, "shots": 256, "language": "quanta"}
+        )
+        self.assertEqual(status, 200)
+        self.assertTrue(data.get("success"))
+        self.assertEqual(data.get("qubits"), 2)
+        self.assertEqual(sum(data.get("counts", {}).values()), 256)
+
+    def test_compile_to_qasm_endpoint(self):
+        code = read_sample("bell.qta")
+        status, data = http_json("POST", "/compile-to-qasm", {"code": code})
+        self.assertEqual(status, 200)
+        self.assertTrue(data.get("success"))
+        self.assertIn("OPENQASM 3", data.get("qasm", ""))
+
+    def test_check_quanta_endpoint_valid(self):
+        code = read_sample("bell.qta")
+        status, data = http_json("POST", "/check-quanta", {"code": code})
+        self.assertEqual(status, 200)
+        self.assertTrue(data.get("valid"))
+
+    def test_check_quanta_endpoint_invalid(self):
+        status, data = http_json("POST", "/check-quanta", {"code": "qbit q\nH(missing)"})
+        self.assertEqual(status, 400)
+        self.assertFalse(data.get("valid"))
+        self.assertIn("error", data)
+
+    def test_debug_prints_endpoint(self):
+        code = read_sample("superposition.qta")
+        status, data = http_json("POST", "/debug-prints", {"code": code})
+        self.assertEqual(status, 200)
+        self.assertTrue(data.get("success"))
+        output = data.get("output", "")
+        self.assertTrue("|0" in output and "|1" in output)
+
+    def test_list_functions_endpoint(self):
+        status, data = http_json("GET", "/list-functions", None)
+        self.assertEqual(status, 200)
+        self.assertTrue(data.get("success"))
+        self.assertTrue(len(data.get("functions", [])) > 0)
+
+    def test_function_docs_endpoint(self):
+        status, data = http_json("POST", "/function-docs", {"name": "Print"})
+        self.assertEqual(status, 200)
+        self.assertTrue(data.get("success"))
+        self.assertEqual(data["doc"]["name"], "Print")
+
+    def test_compile_to_qasm_both_modes(self):
+        code = read_sample("bell.qta")
+        status, data = http_json("POST", "/compile-to-qasm", {"code": code, "include_both": True})
+        self.assertEqual(status, 200)
+        self.assertTrue(data.get("success"))
+        self.assertIn("OPENQASM 3", data.get("qasm_flat", ""))
+        self.assertIn("OPENQASM 3", data.get("qasm_structured", ""))
 
     def test_save_file_normalizes_windows_line_endings(self):
         code = "line1\r\nline2\r\n"
@@ -150,6 +267,7 @@ if __name__ == "__main__":
     loader = unittest.TestLoader()
     suite = unittest.TestSuite()
     suite.addTests(loader.loadTestsFromTestCase(CompilerUnitTests))
+    suite.addTests(loader.loadTestsFromTestCase(QuantaHelperTests))
     suite.addTests(loader.loadTestsFromTestCase(HttpApiTests))
     runner = unittest.TextTestRunner(verbosity=2)
     result = runner.run(suite)

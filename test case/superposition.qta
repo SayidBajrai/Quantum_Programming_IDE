@@ -1,0 +1,3 @@
+qbit q
+H(q)
+Print(q)

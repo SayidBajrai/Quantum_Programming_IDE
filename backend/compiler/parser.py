@@ -14,9 +14,11 @@ except ImportError:
 # Import Quanta language parser
 try:
     import quanta
+    from quanta.errors import QuantaError
     QUANTA_PARSER_AVAILABLE = True
 except ImportError:
     QUANTA_PARSER_AVAILABLE = False
+    QuantaError = None  # type: ignore
 
 def parse_qasm(code: str, language: str = 'openqasm3'):
     """
@@ -112,33 +114,28 @@ def parse_quanta(code: str):
         
         return circuit
     except CompilationError:
-        # Re-raise compilation errors as-is
         raise
     except AttributeError as e:
-        # Handle case where quanta module doesn't have compile function
         raise CompilationError(
             f"Quanta module API error: {str(e)}. "
             "Please ensure quanta-lang is properly installed (pip install quanta-lang>=0.1.5)."
         )
     except Exception as e:
-        # Get more detailed error information
+        if QuantaError is not None and isinstance(e, QuantaError):
+            from .quanta_helpers import quanta_error_to_dict
+            info = quanta_error_to_dict(e)
+            raise CompilationError(info["error"]) from e
+
         error_msg = str(e)
         error_type = type(e).__name__
-        
-        # Check if this is a parsing error from quanta.compile()
-        # The error format "line,col: message" suggests it's from quanta's parser
+
         if "Undefined symbol" in error_msg or "undefined" in error_msg.lower():
-            # Provide helpful guidance for gate definition issues
             raise CompilationError(
                 f"Quanta parse error: {error_msg}\n\n"
                 "Common causes:\n"
-                "1. Gate parameter syntax: In Quanta, gate definitions use parameters as qubit arguments.\n"
-                "   Example: gate Bell(a, b) { H(a); CNOT(a, b); }\n"
+                "1. Gate parameter syntax: gate Bell(a, b) { H(a); CNot(a, b); }\n"
                 "2. Ensure all variables are declared before use.\n"
-                "3. Check that gate names match (case-sensitive: CNOT vs CNot).\n"
-                "If the error persists, this may be a bug in quanta-lang. "
-                "Try updating: pip install --upgrade quanta-lang"
+                "3. Check gate names (case-sensitive: CNot vs CNOT)."
             )
-        
-        # For other errors, provide the full error message
+
         raise CompilationError(f"Quanta compilation error ({error_type}): {error_msg}")

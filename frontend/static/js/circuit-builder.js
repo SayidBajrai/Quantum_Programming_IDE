@@ -879,72 +879,98 @@ function renderCircuit() {
 }
 
 function updateQASMCode() {
-    if (!circuitBuilderMonacoEditor) return;
-    
-    // Generate QASM code from circuit state
+    updateGeneratedCode();
+}
+
+const qasmToQuantaGate = {
+    h: 'H', x: 'X', y: 'Y', z: 'Z', s: 'S', t: 'T',
+    cx: 'CNot', cz: 'CZ', swap: 'SwapGate', ccx: 'CCX'
+};
+
+function buildOpenQasmCode() {
     let code = 'OPENQASM 3;\n';
     code += 'include "stdgates.inc";\n';
     code += `qubit[${circuitState.qubits}] q;\n`;
     code += `bit[${circuitState.qubits}] c;\n\n`;
-    
-    // Sort gates by column, then by qubit
+
     const sortedGates = [...circuitState.gates].sort((a, b) => {
         if (a.column !== b.column) return a.column - b.column;
         return a.qubit - b.qubit;
     });
-    
-    // Group gates by column
+
     const gatesByColumn = {};
     sortedGates.forEach(gate => {
-        if (!gatesByColumn[gate.column]) {
-            gatesByColumn[gate.column] = [];
-        }
+        if (!gatesByColumn[gate.column]) gatesByColumn[gate.column] = [];
         gatesByColumn[gate.column].push(gate);
     });
-    
-    // Generate code column by column
+
     Object.keys(gatesByColumn).sort((a, b) => parseInt(a) - parseInt(b)).forEach(column => {
         gatesByColumn[column].forEach(gate => {
             const gateDef = gateDefinitions[gate.gate];
             let gateLine = '';
-            
             if (gateDef.singleQubit) {
                 if (gate.params && Object.keys(gate.params).length > 0) {
                     const paramValue = gate.params[Object.keys(gate.params)[0]];
-                    // Handle parameter formatting - convert π to pi, ensure proper spacing
                     let formattedParam = paramValue.replace(/π/g, 'pi').trim();
                     gateLine = `${gate.gate}(${formattedParam}) q[${gate.qubit}];`;
                 } else {
                     gateLine = `${gate.gate} q[${gate.qubit}];`;
                 }
+            } else if (gate.gate === 'swap') {
+                gateLine = `swap q[${gate.qubit}], q[${gate.targetQubit}];`;
             } else {
-                // Multi-qubit gate
-                if (gate.gate === 'swap') {
-                    // SWAP gate syntax: swap q[0], q[1];
-                    gateLine = `swap q[${gate.qubit}], q[${gate.targetQubit}];`;
-                } else {
-                    // Control gates: cx q[0], q[1];
-                    gateLine = `${gate.gate} q[${gate.qubit}], q[${gate.targetQubit}];`;
-                }
+                gateLine = `${gate.gate} q[${gate.qubit}], q[${gate.targetQubit}];`;
             }
-            
             code += gateLine + '\n';
         });
     });
-    
-    // Add measurements at the end
+
     code += '\n';
     for (let i = 0; i < circuitState.qubits; i++) {
         code += `measure q[${i}] -> c[${i}];\n`;
     }
-    
-    // Update Monaco editor
+    return code;
+}
+
+function buildQuantaCode() {
+    let code = `qbit[${circuitState.qubits}] q\nbit[${circuitState.qubits}] c\n\n`;
+
+    const sortedGates = [...circuitState.gates].sort((a, b) => {
+        if (a.column !== b.column) return a.column - b.column;
+        return a.qubit - b.qubit;
+    });
+
+    sortedGates.forEach(gate => {
+        const gateDef = gateDefinitions[gate.gate];
+        const qName = qasmToQuantaGate[gate.gate] || gate.gate;
+        if (gateDef.singleQubit) {
+            if (gate.params && Object.keys(gate.params).length > 0) {
+                const paramValue = gate.params[Object.keys(gate.params)[0]].replace(/π/g, 'pi').trim();
+                code += `${qName}(${paramValue}, q[${gate.qubit}])\n`;
+            } else {
+                code += `${qName}(q[${gate.qubit}])\n`;
+            }
+        } else if (gate.gate === 'swap') {
+            code += `SwapGate(q[${gate.qubit}], q[${gate.targetQubit}])\n`;
+        } else {
+            code += `${qName}(q[${gate.qubit}], q[${gate.targetQubit}])\n`;
+        }
+    });
+
+    code += '\nMeasure(q, c)\n';
+    return code;
+}
+
+function updateGeneratedCode() {
+    if (!circuitBuilderMonacoEditor) return;
+    const formatSelect = document.getElementById('circuitCodeFormatSelect');
+    const format = formatSelect ? formatSelect.value : 'openqasm3';
+    const code = format === 'quanta' ? buildQuantaCode() : buildOpenQasmCode();
     circuitBuilderMonacoEditor.setValue(code);
-    
-    // Also update global monacoEditor if it exists (for app.js compatibility)
-    if (typeof window.monacoEditor !== 'undefined' && window.monacoEditor) {
-        window.monacoEditor.setValue(code);
-    }
+    const lang = format === 'quanta' ? 'quanta' : 'openqasm3';
+    const theme = format === 'quanta' ? 'quanta-theme' : 'openqasm-theme';
+    monaco.editor.setModelLanguage(circuitBuilderMonacoEditor.getModel(), lang);
+    circuitBuilderMonacoEditor.updateOptions({ theme });
 }
 
 function initializeMonacoEditor() {
@@ -1048,6 +1074,11 @@ function initializeMonacoEditor() {
 }
 
 function setupCircuitEventListeners() {
+    const circuitCodeFormatSelect = document.getElementById('circuitCodeFormatSelect');
+    if (circuitCodeFormatSelect) {
+        circuitCodeFormatSelect.addEventListener('change', () => updateGeneratedCode());
+    }
+
     // Add qubit button - adds exactly one qubit
     const addQubitBtn = document.getElementById('addQubitBtn');
     if (addQubitBtn) {
@@ -1112,9 +1143,13 @@ function setupCircuitEventListeners() {
         const resultsDisplay = document.getElementById('resultsDisplay');
         const emptyState = document.getElementById('emptyState');
         
+        const formatSelect = document.getElementById('circuitCodeFormatSelect');
+        const language = formatSelect ? formatSelect.value : 'openqasm3';
+        const langName = language === 'quanta' ? 'Quanta' : 'OpenQASM 3';
+
         if (!code) {
             if (errorDisplay && errorMessage) {
-                errorMessage.textContent = 'Please enter some OpenQASM 3 code';
+                errorMessage.textContent = `Please enter some ${langName} code`;
                 errorDisplay.classList.remove('hidden');
             }
             if (typeof switchRightTab === 'function') switchRightTab('output');
@@ -1141,7 +1176,8 @@ function setupCircuitEventListeners() {
                 },
                 body: JSON.stringify({
                     code: code,
-                    shots: shots
+                    shots: shots,
+                    language: language
                 })
             });
             
@@ -1263,16 +1299,14 @@ function setupCircuitEventListeners() {
                 : rawCode).trim();
             
             if (!code) {
-                alert('Please generate some OpenQASM 3 code to save');
+                alert('Please generate some code to save');
                 return;
             }
-            
-            // Circuit builder always generates OpenQASM 3
-            const language = 'openqasm3';
-            const fileExtension = '.qasm';
-            
-            // Prompt for filename
-            const extensionHint = 'without .qasm extension';
+
+            const formatSelect = document.getElementById('circuitCodeFormatSelect');
+            const language = formatSelect ? formatSelect.value : 'openqasm3';
+            const fileExtension = language === 'quanta' ? '.qta' : '.qasm';
+            const extensionHint = language === 'quanta' ? 'without .qta extension' : 'without .qasm extension';
             const filename = prompt(`Enter a filename for your circuit (${extensionHint}):`);
             
             if (!filename || !filename.trim()) {

@@ -1,0 +1,9 @@
+// Debug print format examples (use Debug Output tab)
+qbit q 
+H(q)
+
+Print(q)
+Print(f"\n\n\n{q:sum}")
+Print(f"\n\n\n{q:prob}")
+Print(f"\n\n\n{q:bloch}")
+Print(f"\n\n\n{q:entropy}")

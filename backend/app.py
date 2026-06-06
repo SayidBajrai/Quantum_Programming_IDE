@@ -417,16 +417,14 @@ def get_saved_files():
         if os.path.exists(saved_dir):
             for filename in os.listdir(saved_dir):
                 if filename.endswith('.qasm') or filename.endswith('.qasm3') or filename.endswith('.qta'):
-                    # Get file name without extension for display
-                    name = os.path.splitext(filename)[0]
                     files.append({
                         'filename': filename,
-                        'name': name.replace('_', ' ').title()
+                        'name': filename,
                     })
         
         return jsonify({
             "success": True,
-            "files": sorted(files, key=lambda x: x['name'])
+            "files": sorted(files, key=lambda x: x['filename'].lower())
         })
     except Exception as e:
         return jsonify({
@@ -727,6 +725,155 @@ def rename_file():
             "success": False,
             "error": f"Failed to rename file: {str(e)}"
         }), 500
+
+@app.route('/compile-to-qasm', methods=['POST'])
+def compile_to_qasm():
+    """
+    Compile Quanta source to OpenQASM 3.
+
+    Expected JSON:
+    {
+        "code": "...",
+        "keep_structure": false  // optional
+    }
+    """
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({"success": False, "error": "No JSON data provided"}), 400
+
+        code = data.get('code', '')
+        keep_structure = bool(data.get('keep_structure', False))
+        include_both = bool(data.get('include_both', False))
+
+        if not code:
+            return jsonify({"success": False, "error": "No code provided"}), 400
+
+        from compiler.quanta_helpers import compile_quanta_to_qasm, compile_quanta_both, quanta_error_to_dict
+        from quanta.errors import QuantaError
+
+        if include_both:
+            both = compile_quanta_both(code)
+            return jsonify({
+                "success": True,
+                "qasm_flat": both["qasm_flat"],
+                "qasm_structured": both["qasm_structured"],
+                "keep_structure": keep_structure,
+            })
+
+        qasm = compile_quanta_to_qasm(code, keep_structure=keep_structure)
+        return jsonify({"success": True, "qasm": qasm, "keep_structure": keep_structure})
+
+    except ImportError as e:
+        return jsonify({"success": False, "error": str(e)}), 400
+    except QuantaError as e:
+        info = quanta_error_to_dict(e)
+        return jsonify({"success": False, **info}), 400
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@app.route('/check-quanta', methods=['POST'])
+def check_quanta_endpoint():
+    """
+    Check Quanta source for syntax/semantic errors.
+
+    Expected JSON: {"code": "..."}
+
+    Returns: {"valid": true} or {"valid": false, "error": "...", "line": N, "column": N}
+    """
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({"valid": False, "error": "No JSON data provided"}), 400
+
+        code = data.get('code', '')
+        if not code:
+            return jsonify({"valid": True})
+
+        from compiler.quanta_helpers import check_quanta
+        result = check_quanta(code)
+        status = 200 if result.get("valid") else 400
+        return jsonify(result), status
+
+    except ImportError as e:
+        return jsonify({"valid": False, "error": str(e)}), 400
+    except Exception as e:
+        return jsonify({"valid": False, "error": str(e)}), 500
+
+
+@app.route('/debug-prints', methods=['POST'])
+def debug_prints():
+    """
+    Run Quanta in statevector simulator and return Print() output.
+
+    Expected JSON: {"code": "..."}
+
+    Returns: {"success": true, "output": "..."}
+    """
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({"success": False, "error": "No JSON data provided"}), 400
+
+        code = data.get('code', '')
+        if not code:
+            return jsonify({"success": False, "error": "No code provided"}), 400
+
+        from compiler.quanta_helpers import get_debug_prints, quanta_error_to_dict
+        from quanta.errors import QuantaError
+
+        output = get_debug_prints(code)
+        return jsonify({"success": True, "output": output})
+
+    except ImportError as e:
+        return jsonify({"success": False, "error": str(e)}), 400
+    except QuantaError as e:
+        info = quanta_error_to_dict(e)
+        return jsonify({"success": False, **info}), 400
+    except RuntimeError as e:
+        return jsonify({"success": False, "error": str(e)}), 400
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@app.route('/list-functions', methods=['GET'])
+def list_functions_endpoint():
+    """List documented Quanta built-in functions for autocomplete."""
+    try:
+        category = request.args.get('category')
+        from compiler.quanta_helpers import get_all_function_docs
+        docs = get_all_function_docs(category)
+        return jsonify({"success": True, "functions": docs})
+    except ImportError as e:
+        return jsonify({"success": False, "error": str(e)}), 400
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@app.route('/function-docs', methods=['POST'])
+def function_docs_endpoint():
+    """
+    Get hover documentation for a Quanta function or gate.
+
+    JSON: {"name": "QAdd", "source": "..."}  — source optional for user /// docs
+    Omit name to get all built-in docs.
+    """
+    try:
+        data = request.get_json() or {}
+        name = data.get('name')
+        source = data.get('source', '')
+        from compiler.quanta_helpers import get_function_documentation
+
+        doc = get_function_documentation(name=name, source=source or None)
+        if name and doc is None:
+            return jsonify({"success": False, "error": "Not found"}), 404
+        return jsonify({"success": True, "doc": doc})
+    except ImportError as e:
+        return jsonify({"success": False, "error": str(e)}), 400
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
 
 @app.route('/compile', methods=['POST'])
 def compile():

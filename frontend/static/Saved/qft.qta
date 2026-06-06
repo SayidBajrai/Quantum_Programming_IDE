@@ -1,0 +1,5 @@
+// Quantum Fourier Transform on 3 qubits
+qbit[3] q
+
+QFT(q[0], q[1], q[2])
+Print(f"{q:summary}")

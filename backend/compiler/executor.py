@@ -24,10 +24,38 @@ def compile_and_simulate(code: str, shots: int = 1024, language: str = 'openqasm
         - qubits: Number of qubits
         - shots: Number of shots used
     """
-    # Step 1: Parse using appropriate parser
-    # For OpenQASM 3: uses qiskit-qasm3-import
-    # For Quanta: uses quanta-lang
     try:
+        if language == 'quanta':
+            from compiler.quanta_helpers import run_quanta, QUANTA_AVAILABLE
+            if not QUANTA_AVAILABLE:
+                raise CompilationError(
+                    "Quanta parser not available. Please install quanta-lang: "
+                    "pip install quanta-lang"
+                )
+            try:
+                result = run_quanta(code, shots=shots)
+                counts = result.get("counts", {})
+                num_qubits = 0
+                if "num_qubits" in result:
+                    num_qubits = result["num_qubits"]
+                elif counts:
+                    num_qubits = len(max(counts.keys(), key=len))
+                return {
+                    "counts": counts,
+                    "qubits": num_qubits,
+                    "shots": result.get("shots", shots),
+                }
+            except (RuntimeError, SimulationError):
+                pass
+            except Exception as e:
+                from compiler.parser import QuantaError
+                from compiler.quanta_helpers import quanta_error_to_dict
+                if QuantaError is not None and isinstance(e, QuantaError):
+                    info = quanta_error_to_dict(e)
+                    raise CompilationError(info["error"]) from e
+                if not isinstance(e, (ImportError, RuntimeError)):
+                    raise
+
         circuit = parse_qasm(code, language=language)
         
         # If parser is not available, parse_qasm returns None

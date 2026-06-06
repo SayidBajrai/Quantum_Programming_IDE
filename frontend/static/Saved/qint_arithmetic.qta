@@ -1,0 +1,5 @@
+// Quantum integer arithmetic
+qint[3] a = 1
+qint[3] b = 3
+qint[3] c = a + b
+print(f"{a} + {b} = {c}")

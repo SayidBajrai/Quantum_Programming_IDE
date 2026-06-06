@@ -1,13 +1,18 @@
-// Bell state example 
-qubit[2] q 
-bit[2] c  
+// Bell state example
+qbit[2] q
+bit[2] c
 
-gate Bell(a, b) { 
-    H(a) 
-    CNot(a, b) 
-} 
+gate Bellgate(a, b) {
+    H(a)
+    CNot(a, b)
+}
 
-Bell(q[0], q[1])
+// before Bell gate
+Print(f"qubits before Bell gate: {q}")
 
+// after Bell gate
+Bellgate(q[0], q[1])
+Print(f"qubits after Bell gate: {q}") 
+
+// measure
 Measure(q, c)
-Print(c)

@@ -250,17 +250,35 @@ The compiler supports the following OpenQASM 3 constructs:
 - **Control Flow**: `for` loops with automatic expansion, `if/else` conditionals (noted in circuit building)
 - **Includes**: Standard gate library inclusion (`include "stdgates.inc"`)
 
-### Quanta Language Support
+### Quanta Language Support (quanta-lang 0.1.16+)
 
-The compiler supports the Quanta programming language, which compiles to OpenQASM 3. Quanta provides a Python-like syntax for quantum programming:
+The compiler supports the **Quanta** programming language, which compiles to OpenQASM 3:
 
-- **Gate Definitions**: User-defined gates with parameters
-- **Register Declarations**: `qubit[n]` and `bit[n]` syntax
-- **Standard Gates**: H, X, Y, Z, CNOT, and other quantum operations
-- **Measurements**: `MeasureAll()` and individual measurement operations
-- **Compilation**: Quanta code is automatically converted to OpenQASM 3 before execution
+- **Syntax**: `qbit[n]`, `bit[n]`, `qint[n]`, gate macros, `func`, control flow
+- **Compilation**: Live **Generated QASM** tab with flattened or structured output and side-by-side compare
+- **Debug**: **Debug Output** tab runs `get_prints()` (symbolic state, `:prob`, `:bloch`, `:entropy`, etc.); `:bloch` blocks support hover preview and pinned interactive Bloch sphere windows with symbolic state
+- **Docs**: Type `///` above a `func` or `gate` to auto-generate documentation templates; hover and signature help for user `///` docs and built-ins
+- **IntelliSense**: Hover docs and autocomplete for built-ins (`QAdd`, `Print`, `Grover`, …) and user-defined gates/functions
+- **Simulation**: Quanta uses `quanta.run()` directly; OpenQASM uses the Qiskit parser
+- **Shortcuts**: `Ctrl+Enter` simulate, `Ctrl+Shift+Enter` debug (Quanta)
 
-**Note**: Quanta language support requires `quanta-lang>=0.1.5` to be installed. The compiler provides detailed error messages for syntax issues and gate definition problems.
+**Note**: Requires `quanta-lang>=0.1.16`. Use double-quoted f-strings: `Print(f"{q}")`, not single quotes.
+
+#### Bell State in Quanta
+
+```quanta
+qbit[2] q
+bit[2] c
+
+gate Bellgate(a, b) {
+    H(a)
+    CNot(a, b)
+}
+
+Bellgate(q[0], q[1])
+Measure(q, c)
+Print(c)
+```
 
 ### Example Circuits
 
@@ -303,17 +321,20 @@ measure q -> c;
 #### Bell State in Quanta Language
 
 ```quanta
-qubit[2] q
+qbit[2] q
 bit[2] c
 
-gate Bell(a, b) {
+gate Bellgate(a, b) {
     H(a)
-    CNOT(a, b)
+    CNot(a, b)
 }
 
-Bell(q[0], q[1])
-MeasureAll(q, c)
+Bellgate(q[0], q[1])
+Measure(q, c)
+Print(c)
 ```
+
+(See also saved examples: `grover.qta`, `qft.qta`, `debug_formats.qta`.)
 
 ### File Management
 
@@ -812,6 +833,15 @@ For questions, technical issues, collaboration inquiries, or research partnershi
 
 ## Version History
 
+- **v1.1.5** (2026-06-07): Quanta debug Bloch spheres, `///` doc tooling, and IntelliSense improvements
+
+  - Added interactive **Bloch sphere** visualization for `:bloch` debug output — hover a `BLOCH SPHERE` block for a read-only preview, click to pin a draggable window (close with × only)
+  - Supports inline prefix format (e.g. `state=|0⟩ bloch=BLOCH SPHERE`); pinned title uses the prefix; one pinned window per debug link; multiple links can be open at once
+  - Pinned sphere shows θ/φ arcs (when non-zero), +X/+Y/+Z axes, and symbolic pure-state ket derived from θ, φ, and the Bloch vector
+  - Auto-generate `///` documentation templates when typing `///` above a `func` or `gate` (untyped func params default to `var`)
+  - Improved Quanta hover formatting (multi-line summaries, parameter list, per-parameter hover, signature help while typing calls)
+  - Quanta-lang **0.1.16+** integration: structured QASM compare, debug cheat sheet, syntax error badges, saved-example filename UX, and expanded `.qta` examples
+
 - **v1.1.4** (2026-06-06): Tabbed right panel and automated test suite
 
   - Added tabbed right panel on compiler and circuit pages (Circuit Diagram / Generated QASM and Simulation Results)
@@ -906,5 +936,5 @@ For questions, technical issues, collaboration inquiries, or research partnershi
 
 ---
 
-**Version**: 1.1.4
-**Last Updated**: 2026-06-06
+**Version**: 1.1.5
+**Last Updated**: 2026-06-07

@@ -34,9 +34,40 @@ const rightSection = document.getElementById('rightSection');
 const savedToggle = document.getElementById('savedToggle');
 const savedExamples = document.getElementById('savedExamples');
 const codeFormatSelect = document.getElementById('codeFormatSelect');
+const keepStructureLabel = document.getElementById('keepStructureLabel');
+const keepStructureCheckbox = document.getElementById('keepStructureCheckbox');
+const generatedQasm = document.getElementById('generatedQasm');
+const qasmStatus = document.getElementById('qasmStatus');
+const debugBtn = document.getElementById('debugBtn');
+const debugOutput = document.getElementById('debugOutput');
+const debugStatus = document.getElementById('debugStatus');
+const debugErrorDisplay = document.getElementById('debugErrorDisplay');
+const debugErrorMessage = document.getElementById('debugErrorMessage');
+const copyQasmBtn = document.getElementById('copyQasmBtn');
+const downloadQasmBtn = document.getElementById('downloadQasmBtn');
+const compareQasmCheckbox = document.getElementById('compareQasmCheckbox');
+const qasmSingleView = document.getElementById('qasmSingleView');
+const qasmCompareView = document.getElementById('qasmCompareView');
+const generatedQasmFlat = document.getElementById('generatedQasmFlat');
+const generatedQasmStructured = document.getElementById('generatedQasmStructured');
+const syntaxErrorBadge = document.getElementById('syntaxErrorBadge');
+
+let lastQuantaQasmText = '';
 
 // Global variable to store Monaco theme configuration
 let monacoThemeConfig = null;
+
+// Currently opened saved file (null = new/unsaved file)
+let currentOpenFilename = null;
+
+function getFileBaseName(filename) {
+    if (!filename) return '';
+    return filename.replace(/\.(qasm3?|qta)$/i, '');
+}
+
+function setCurrentOpenFilename(filename) {
+    currentOpenFilename = filename || null;
+}
 
 // Load Monaco theme configuration from config.json
 async function loadMonacoThemeConfig() {
@@ -158,43 +189,42 @@ function initializeMonacoEditor() {
             }
         });
         
-        // Define Quanta language tokens (similar structure to OpenQASM 3)
+        // Define Quanta language tokens (0.1.14 spec)
         monaco.languages.setMonarchTokensProvider('quanta', {
             tokenizer: {
                 root: [
-                    // Comments
+                    [/\/\/\/.*$/, 'comment'],
                     [/\/\/.*$/, 'comment'],
-                    [/\/\*[\s\S]*?\*\//, 'comment'],
-                    
-                    // Control flow keywords
+
                     [/\b(if|else|for|while|break|continue|return)\b/, 'controlflow'],
                     [/else\s+if/, 'controlflow'],
-                    
-                    // Quantum gates and operations (similar to OpenQASM 3)
-                    [/\b(h|x|y|z|s|cx|cy|cz|ch|swap|ccx|cswap|u|p|rx|ry|rz|r|crx|cry|crz|cu|cp|phase|cphase|id|tdg|sdg)\b/, 'function-like'],
-                    [/\b(measure|reset)\b/, 'function-like-2'],
-                    
-                    // Keywords
-                    [/\b(qubit|bit|let|gate|def|const|input|float|int)\b/, 'keyword'],
-                    
-                    // Operators
-                    [/[+\-*/=<>!&|]+/, 'operator'],
+
+                    [/\b(ctrl|inv)\b/, 'modifiers'],
+
+                    [/\b(H|X|Y|Z|S|T|CNot|CNOT|CZ|Swap|SWAP|RZ|RY|RX|Measure|CCX|CCNot|Bell|GHZ|WState|SwapGate|QFT|InverseQFT)\b/, 'function-like'],
+                    [/\b(QAdd|QMult|QSub|QDiv|QMod|QFTAdd|QTreeAdd|QExpEncMult|QTreeMult|Compare|Grover)\b/, 'function-like'],
+                    [/\b(Print|Len|Range|Assert|Fidelity|Error|Warn|Shape|Reshape|DotProduct|CrossProduct|ElementwiseProduct|TensorProduct)\b/, 'function'],
+                    [/\b(reset)\b/, 'function-like-2'],
+
+                    [/\b(func|gate|class|var|let|const)\b/, 'keyword'],
+                    [/\b(qbit|bit|qint|bint|qdec|qfloat|int|float|bool|str|list|dict)\b/, 'keyword'],
+
+                    [/\b([a-zA-Z_][a-zA-Z0-9_]*)\s*\(/, 'function'],
+
+                    [/[+\-*/%=<>!&|.]+/, 'operator'],
                     [/[(),;\[\]{}]/, 'delimiter'],
-                    
-                    // Numbers
                     [/\d+\.?\d*/, 'number'],
-                    
-                    // Strings
-                    [/["'][^"']*["']/, 'string'],
-                    
-                    // Identifiers
+                    [/f"(?:\\.|[^"\\])*"/, 'string'],
+                    [/"(?:\\.|[^"\\])*"/, 'string'],
                     [/[a-zA-Z_][a-zA-Z0-9_]*/, 'identifier'],
-                    
-                    // Whitespace
                     [/\s+/, 'white']
                 ]
             }
         });
+
+        if (typeof setupQuantaIntelliSense === 'function') {
+            setupQuantaIntelliSense(monaco);
+        }
         
         // Define theme colors
         const currentTheme = localStorage.getItem('theme') || 'dark';
@@ -233,26 +263,40 @@ function initializeMonacoEditor() {
         });
 
         window.monacoEditor = monacoEditor;
+
+        if (typeof setupQuantaDocAutoGenerate === 'function') {
+            setupQuantaDocAutoGenerate(monacoEditor);
+        }
+        if (typeof setupQuantaDocCacheInvalidation === 'function') {
+            setupQuantaDocCacheInvalidation(monacoEditor);
+        }
         
         // Set up real-time error detection
         setupMonacoErrorDetection();
         
-        // Set up change listener for circuit diagram updates
+        // Set up change listener for circuit diagram and QASM updates
         monacoEditor.onDidChangeModelContent(() => {
             clearTimeout(window.circuitUpdateTimeout);
             window.circuitUpdateTimeout = setTimeout(() => {
                 updateCircuitDiagram();
+                updateGeneratedQasm();
             }, 500);
         });
         
-        // Keyboard shortcut: Ctrl+Enter to run
+        // Keyboard shortcut: Ctrl+Enter to run, Ctrl+Shift+Enter to debug
         monacoEditor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.Enter, () => {
             runSimulation();
         });
+        monacoEditor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyMod.Shift | monaco.KeyCode.Enter, () => {
+            runDebug();
+        });
         
-        // Initialize circuit diagram
+        // Initialize circuit diagram and Quanta UI
         if (circuitDiagram) {
-            setTimeout(() => updateCircuitDiagram(), 100);
+            setTimeout(() => {
+                updateCircuitDiagram();
+                updateQuantaUI();
+            }, 100);
         }
     });
 }
@@ -271,55 +315,307 @@ function setupMonacoErrorDetection() {
     });
 }
 
+function buildErrorMarkers(data, langId) {
+    let line = data.line;
+    let column = data.column;
+
+    if (!line && data.error) {
+        const lineMatch = data.error.match(/\(line\s+(\d+)(?:,\s*column\s+(\d+))?\)/i)
+            || data.error.match(/line\s+(\d+)/i);
+        if (lineMatch) {
+            line = parseInt(lineMatch[1], 10);
+            if (lineMatch[2]) column = parseInt(lineMatch[2], 10);
+        }
+    }
+
+    const lineNumber = line || 1;
+    const colNumber = column || 1;
+    const category = data.category ? `[${data.category}] ` : '';
+    const message = `${category}${data.error || 'Compilation error'}`;
+
+    return [{
+        severity: monaco.MarkerSeverity.Error,
+        startLineNumber: lineNumber,
+        startColumn: colNumber,
+        endLineNumber: lineNumber,
+        endColumn: colNumber + 1,
+        message
+    }];
+}
+
+function updateSyntaxErrorBadge(data, isValid) {
+    if (!syntaxErrorBadge) return;
+    if (isValid || !data || !data.error) {
+        syntaxErrorBadge.classList.add('hidden');
+        return;
+    }
+    const category = data.category || 'error';
+    const colors = {
+        syntax: 'border-red-600 text-red-400 bg-red-950/50',
+        semantic: 'border-orange-600 text-orange-400 bg-orange-950/50',
+        type: 'border-yellow-600 text-yellow-400 bg-yellow-950/50',
+        compilation: 'border-red-600 text-red-400 bg-red-950/50',
+        unknown: 'border-gray-600 text-gray-400 bg-gray-950/50'
+    };
+    syntaxErrorBadge.className = `absolute top-2 right-2 z-10 px-2 py-1 text-xs rounded border ${colors[category] || colors.unknown}`;
+    syntaxErrorBadge.textContent = category.charAt(0).toUpperCase() + category.slice(1);
+    syntaxErrorBadge.title = data.error;
+    syntaxErrorBadge.classList.remove('hidden');
+}
+
 // Check for syntax errors
 async function checkSyntaxErrors() {
     if (!monacoEditor) return;
-    
+
     const code = monacoEditor.getValue();
     const language = codeFormatSelect ? codeFormatSelect.value : 'openqasm3';
     const langId = language === 'quanta' ? 'quanta' : 'openqasm3';
-    
+
     if (!code.trim()) {
         monaco.editor.setModelMarkers(monacoEditor.getModel(), langId, []);
         return;
     }
-    
+
     try {
-        // Try to parse the circuit to check for errors
-        const response = await fetch('/circuit-diagram', {
+        const endpoint = language === 'quanta' ? '/check-quanta' : '/circuit-diagram';
+        const body = language === 'quanta'
+            ? { code: code }
+            : { code: code, language: language };
+
+        const response = await fetch(endpoint, {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ 
-                code: code,
-                language: language
-            })
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body)
         });
-        
+
         const data = await response.json();
-        
-        if (!data.success && data.error) {
-            // Parse error message to get line number if possible
-            const errorMatch = data.error.match(/line\s+(\d+)/i);
-            const lineNumber = errorMatch ? parseInt(errorMatch[1]) - 1 : 0;
-            
-            const markers = [{
-                severity: monaco.MarkerSeverity.Error,
-                startLineNumber: lineNumber || 1,
-                startColumn: 1,
-                endLineNumber: lineNumber || 1,
-                endColumn: 1000,
-                message: data.error
-            }];
-            
-            monaco.editor.setModelMarkers(monacoEditor.getModel(), langId, markers);
+
+        if (language === 'quanta') {
+            if (!data.valid && data.error) {
+                monaco.editor.setModelMarkers(
+                    monacoEditor.getModel(), langId, buildErrorMarkers(data, langId)
+                );
+                updateSyntaxErrorBadge(data, false);
+            } else {
+                monaco.editor.setModelMarkers(monacoEditor.getModel(), langId, []);
+                updateSyntaxErrorBadge(null, true);
+            }
+        } else if (!data.success && data.error) {
+            monaco.editor.setModelMarkers(
+                monacoEditor.getModel(), langId, buildErrorMarkers(data, langId)
+            );
+            updateSyntaxErrorBadge(data, false);
         } else {
-            // Clear errors if valid
             monaco.editor.setModelMarkers(monacoEditor.getModel(), langId, []);
+            updateSyntaxErrorBadge(null, true);
         }
     } catch (error) {
         console.error('Error checking syntax:', error);
+    }
+}
+
+function updateQuantaUI() {
+    const language = codeFormatSelect ? codeFormatSelect.value : 'openqasm3';
+    const isQuanta = language === 'quanta';
+
+    document.querySelectorAll('.quanta-only').forEach(el => {
+        el.classList.toggle('hidden', !isQuanta);
+    });
+
+    if (keepStructureLabel) {
+        keepStructureLabel.classList.toggle('hidden', !isQuanta);
+    }
+
+    if (isQuanta) {
+        updateGeneratedQasm();
+    } else if (generatedQasm) {
+        generatedQasm.textContent = '// Generated QASM is available when editing Quanta code';
+        if (qasmStatus) qasmStatus.textContent = 'N/A';
+    }
+}
+
+async function updateGeneratedQasm() {
+    if (!generatedQasm || !qasmStatus) return;
+
+    const language = codeFormatSelect ? codeFormatSelect.value : 'openqasm3';
+    if (language !== 'quanta') return;
+
+    const code = normalizeLineEndings(monacoEditor ? monacoEditor.getValue() : '').trim();
+    const keepStructure = keepStructureCheckbox ? keepStructureCheckbox.checked : false;
+    const compareModes = compareQasmCheckbox ? compareQasmCheckbox.checked : false;
+
+    if (qasmSingleView && qasmCompareView) {
+        qasmSingleView.classList.toggle('hidden', compareModes);
+        qasmCompareView.classList.toggle('hidden', !compareModes);
+        if (compareModes) {
+            qasmSingleView.classList.remove('flex-1', 'min-h-0');
+            qasmCompareView.classList.add('flex-1', 'min-h-0');
+        } else {
+            qasmSingleView.classList.add('flex-1', 'min-h-0');
+        }
+    }
+
+    if (!code) {
+        const empty = '// Generated QASM will appear here when editing Quanta code';
+        generatedQasm.textContent = empty;
+        if (generatedQasmFlat) generatedQasmFlat.textContent = empty;
+        if (generatedQasmStructured) generatedQasmStructured.textContent = empty;
+        lastQuantaQasmText = '';
+        qasmStatus.textContent = 'Ready';
+        return;
+    }
+
+    qasmStatus.textContent = 'Compiling...';
+
+    try {
+        const body = compareModes
+            ? { code, include_both: true }
+            : { code, keep_structure: keepStructure };
+
+        const response = await fetch('/compile-to-qasm', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body)
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            if (compareModes) {
+                if (generatedQasmFlat) generatedQasmFlat.textContent = data.qasm_flat;
+                if (generatedQasmStructured) generatedQasmStructured.textContent = data.qasm_structured;
+                lastQuantaQasmText = data.qasm_flat;
+                qasmStatus.textContent = 'Valid (compare)';
+            } else {
+                generatedQasm.textContent = data.qasm;
+                lastQuantaQasmText = data.qasm;
+                qasmStatus.textContent = keepStructure ? 'Valid (structured)' : 'Valid (flattened)';
+            }
+        } else {
+            const err = data.error || 'Compilation failed';
+            generatedQasm.textContent = err;
+            if (generatedQasmFlat) generatedQasmFlat.textContent = err;
+            if (generatedQasmStructured) generatedQasmStructured.textContent = err;
+            lastQuantaQasmText = '';
+            qasmStatus.textContent = 'Invalid';
+        }
+    } catch (error) {
+        const err = `Error: ${error.message}`;
+        generatedQasm.textContent = err;
+        if (generatedQasmFlat) generatedQasmFlat.textContent = err;
+        if (generatedQasmStructured) generatedQasmStructured.textContent = err;
+        lastQuantaQasmText = '';
+        qasmStatus.textContent = 'Error';
+    }
+}
+
+function getActiveQasmText() {
+    if (compareQasmCheckbox && compareQasmCheckbox.checked && generatedQasmFlat) {
+        return generatedQasmFlat.textContent || lastQuantaQasmText;
+    }
+    return lastQuantaQasmText || (generatedQasm ? generatedQasm.textContent : '');
+}
+
+async function copyGeneratedQasm() {
+    const text = getActiveQasmText();
+    if (!text || text.startsWith('//') || text.startsWith('Error')) {
+        alert('No valid QASM to copy');
+        return;
+    }
+    try {
+        await navigator.clipboard.writeText(text);
+        if (qasmStatus) qasmStatus.textContent = 'Copied to clipboard';
+    } catch {
+        alert('Failed to copy to clipboard');
+    }
+}
+
+function downloadGeneratedQasm() {
+    const text = getActiveQasmText();
+    if (!text || text.startsWith('//') || text.startsWith('Error')) {
+        alert('No valid QASM to download');
+        return;
+    }
+    const base = currentOpenFilename ? getFileBaseName(currentOpenFilename) : 'circuit';
+    const blob = new Blob([text], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${base}.qasm`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    if (qasmStatus) qasmStatus.textContent = 'Downloaded';
+}
+
+function insertDebugSnippet(snippet) {
+    if (!monacoEditor || !snippet) return;
+    const model = monacoEditor.getModel();
+    const pos = monacoEditor.getPosition();
+    if (!pos) return;
+    monacoEditor.executeEdits('debug-snippet', [{
+        range: new monaco.Range(pos.lineNumber, pos.column, pos.lineNumber, pos.column),
+        text: snippet + '\n',
+        forceMoveMarkers: true
+    }]);
+    monacoEditor.focus();
+}
+
+async function runDebug() {
+    if (!debugOutput) return;
+
+    const code = normalizeLineEndings(monacoEditor ? monacoEditor.getValue() : '').trim();
+    const language = codeFormatSelect ? codeFormatSelect.value : 'openqasm3';
+
+    if (language !== 'quanta') {
+        return;
+    }
+
+    if (!code) {
+        if (debugErrorMessage) debugErrorMessage.textContent = 'Please enter some Quanta code';
+        if (debugErrorDisplay) debugErrorDisplay.classList.remove('hidden');
+        return;
+    }
+
+    if (debugBtn) debugBtn.disabled = true;
+    if (debugStatus) debugStatus.textContent = 'Running statevector debug...';
+    if (debugErrorDisplay) debugErrorDisplay.classList.add('hidden');
+    switchRightTab('debug');
+
+    try {
+        const response = await fetch('/debug-prints', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ code })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            const output = data.output || '(no output)';
+            if (typeof updateDebugOutputWithBloch === 'function') {
+                updateDebugOutputWithBloch(output);
+            } else {
+                debugOutput.textContent = output;
+            }
+            if (debugStatus) debugStatus.textContent = 'Debug complete';
+        } else {
+            if (typeof updateDebugOutputWithBloch === 'function') {
+                updateDebugOutputWithBloch('Run debug to see Print() output here');
+            } else {
+                debugOutput.textContent = 'Run debug to see Print() output here';
+            }
+            if (debugErrorMessage) debugErrorMessage.textContent = data.error || 'Debug failed';
+            if (debugErrorDisplay) debugErrorDisplay.classList.remove('hidden');
+            if (debugStatus) debugStatus.textContent = 'Debug failed';
+        }
+    } catch (error) {
+        if (debugErrorMessage) debugErrorMessage.textContent = `Network error: ${error.message}`;
+        if (debugErrorDisplay) debugErrorDisplay.classList.remove('hidden');
+        if (debugStatus) debugStatus.textContent = 'Error';
+    } finally {
+        if (debugBtn) debugBtn.disabled = false;
     }
 }
 
@@ -330,6 +626,10 @@ document.addEventListener('DOMContentLoaded', () => {
     loadSidebarState();
     loadResizeState();
     loadSavedState();
+
+    if (debugOutput && typeof setupBlochDebugVisualization === 'function') {
+        setupBlochDebugVisualization(debugOutput);
+    }
     
     // Only initialize Monaco if not on circuit builder page (circuit builder has its own initialization)
     if (!document.getElementById('circuitBuilder')) {
@@ -484,7 +784,7 @@ async function loadSavedFiles() {
                 // File name span
                 const nameSpan = document.createElement('span');
                 nameSpan.className = 'flex-1 truncate';
-                nameSpan.textContent = file.name;
+                nameSpan.textContent = file.filename;
                 nameSpan.setAttribute('data-filename', file.filename);
                 
                 // Actions container (only visible on hover)
@@ -565,7 +865,9 @@ async function loadSavedFiles() {
                         
                         // Set the code
                         monacoEditor.setValue(code);
+                        setCurrentOpenFilename(file.filename);
                         updateCircuitDiagram();
+                        updateQuantaUI();
                     }
                 });
                 
@@ -583,8 +885,7 @@ async function loadSavedFiles() {
 }
 
 async function editFileName(filename, nameElement) {
-    const currentName = nameElement.textContent.trim();
-    // Detect file extension to show appropriate prompt
+    const currentName = getFileBaseName(filename);
     const isQta = filename.toLowerCase().endsWith('.qta');
     const extensionHint = isQta ? 'without .qta extension' : 'without .qasm extension';
     const newName = prompt(`Enter new filename (${extensionHint}):`, currentName);
@@ -608,7 +909,12 @@ async function editFileName(filename, nameElement) {
         const data = await response.json();
         
         if (data.success) {
-            // Reload the saved files list
+            if (currentOpenFilename === filename) {
+                const isQta = filename.toLowerCase().endsWith('.qta');
+                const ext = isQta ? '.qta' : (filename.toLowerCase().endsWith('.qasm3') ? '.qasm3' : '.qasm');
+                const renamed = newName.trim().endsWith(ext) ? newName.trim() : `${newName.trim()}${ext}`;
+                setCurrentOpenFilename(renamed);
+            }
             loadSavedFiles();
         } else {
             alert(`Error renaming file: ${data.error || 'Unknown error'}`);
@@ -657,7 +963,9 @@ async function deleteFile(filename) {
         const data = await response.json();
         
         if (data.success) {
-            // Reload the saved files list
+            if (currentOpenFilename === filename) {
+                setCurrentOpenFilename(null);
+            }
             loadSavedFiles();
         } else {
             alert(`Error deleting file: ${data.error || 'Unknown error'}`);
@@ -697,20 +1005,54 @@ function setupEventListeners() {
         codeFormatSelect.addEventListener('change', (e) => {
             const selectedFormat = e.target.value;
             localStorage.setItem('codeFormat', selectedFormat);
-            
-            // Switch Monaco editor language
+
             if (monacoEditor) {
                 const newLanguage = selectedFormat === 'quanta' ? 'quanta' : 'openqasm3';
                 const newTheme = newLanguage === 'quanta' ? 'quanta-theme' : 'openqasm-theme';
-                
+
                 monaco.editor.setModelLanguage(monacoEditor.getModel(), newLanguage);
                 monacoEditor.updateOptions({ theme: newTheme });
-                
-                // Update circuit diagram with new language
+
                 updateCircuitDiagram();
+                updateQuantaUI();
+                checkSyntaxErrors();
             }
         });
     }
+
+    if (keepStructureCheckbox) {
+        const savedKeepStructure = localStorage.getItem('keepStructure') === 'true';
+        keepStructureCheckbox.checked = savedKeepStructure;
+        keepStructureCheckbox.addEventListener('change', (e) => {
+            localStorage.setItem('keepStructure', e.target.checked ? 'true' : 'false');
+            updateGeneratedQasm();
+        });
+    }
+
+    if (debugBtn) {
+        debugBtn.addEventListener('click', runDebug);
+    }
+
+    if (copyQasmBtn) {
+        copyQasmBtn.addEventListener('click', copyGeneratedQasm);
+    }
+    if (downloadQasmBtn) {
+        downloadQasmBtn.addEventListener('click', downloadGeneratedQasm);
+    }
+    if (compareQasmCheckbox) {
+        const savedCompare = localStorage.getItem('compareQasm') === 'true';
+        compareQasmCheckbox.checked = savedCompare;
+        compareQasmCheckbox.addEventListener('change', (e) => {
+            localStorage.setItem('compareQasm', e.target.checked ? 'true' : 'false');
+            updateGeneratedQasm();
+        });
+    }
+
+    document.querySelectorAll('.debug-snippet').forEach(btn => {
+        btn.addEventListener('click', () => {
+            insertDebugSnippet(btn.getAttribute('data-snippet'));
+        });
+    });
     
     // Sidebar toggle
     if (sidebarToggleDesktop) {
@@ -807,8 +1149,10 @@ function setupEventListeners() {
                             monaco.editor.setModelLanguage(monacoEditor.getModel(), detectedLanguage);
                             monacoEditor.updateOptions({ theme: detectedTheme });
                             monacoEditor.setValue(normalizeLineEndings(event.target.result));
+                            setCurrentOpenFilename(file.name);
                         }
                         updateCircuitDiagram();
+                        updateQuantaUI();
                     };
                     reader.readAsText(file);
                 } else {
@@ -1085,9 +1429,9 @@ async function saveFile() {
         return;
     }
     
-    // Prompt for filename with appropriate extension hint
     const extensionHint = language === 'quanta' ? 'without .qta extension' : 'without .qasm extension';
-    const filename = prompt(`Enter a filename for your circuit (${extensionHint}):`);
+    const defaultName = currentOpenFilename ? getFileBaseName(currentOpenFilename) : '';
+    const filename = prompt(`Enter a filename for your circuit (${extensionHint}):`, defaultName);
     
     if (!filename || !filename.trim()) {
         return; // User cancelled or entered empty name
@@ -1139,8 +1483,11 @@ async function saveFile() {
         const data = await response.json();
         
         if (data.success) {
+            const savedName = finalFilename.endsWith(fileExtension)
+                ? finalFilename
+                : `${finalFilename}${fileExtension}`;
+            setCurrentOpenFilename(savedName);
             alert(data.message || 'File saved successfully!');
-            // Refresh the saved files list if the sidebar is expanded
             if (savedExamples && !savedExamples.classList.contains('hidden')) {
                 loadSavedFiles();
             }

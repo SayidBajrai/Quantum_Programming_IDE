@@ -144,7 +144,7 @@
                 <div id="rightSection" class="flex flex-col min-h-0" style="width: 50%; min-width: 200px;">
                     <div id="rightSectionTabs" class="flex border-b border-gray-800 bg-[#1a1a1a] shrink-0">
                         <button type="button" data-tab="code" class="right-tab active px-4 py-2 text-sm font-medium">
-                            Generated QASM Code
+                            Generated Code
                         </button>
                         <button type="button" data-tab="output" class="right-tab px-4 py-2 text-sm font-medium">
                             Simulation Results
@@ -154,7 +154,11 @@
                     <div id="rightSectionPanels" class="flex-1 min-h-0 overflow-hidden">
                         <!-- Code Editor Section -->
                         <div id="codeEditorSection" class="tab-panel flex flex-col h-full" data-tab-panel="code">
-                            <div class="mb-0 flex items-center justify-end p-4 shrink-0">
+                            <div class="mb-0 flex items-center justify-between p-4 shrink-0">
+                                <select id="circuitCodeFormatSelect" class="px-3 py-1 bg-gray-800 border border-gray-700 rounded text-sm text-gray-100">
+                                    <option value="openqasm3" selected>OpenQASM 3</option>
+                                    <option value="quanta">Quanta</option>
+                                </select>
                                 <div class="flex items-center space-x-4">
                                     <label class="flex items-center space-x-2">
                                         <span class="text-sm text-gray-400">Shots:</span>
@@ -169,7 +173,7 @@
                             </div>
 
                             <div
-                                class="flex-1 border border-gray-800 rounded-lg overflow-hidden bg-black theme-editor-container mx-4 mb-4">
+                                class="flex-1 border border-gray-800 rounded-lg overflow-hidden bg-black theme-editor-container mx-0 mb-4">
                                 <div id="codeEditor" style="width: 100%; height: 100%;"></div>
                             </div>
                         </div>

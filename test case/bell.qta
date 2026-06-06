@@ -1,0 +1,5 @@
+qbit[2] q
+bit[2] c
+
+Bell(q[0], q[1])
+Measure(q, c)

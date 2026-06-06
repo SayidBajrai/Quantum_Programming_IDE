@@ -1,0 +1,8 @@
+// Grover search for |101>
+qint[3] x
+bit[3] c
+
+H(x)
+Grover(x, 5)
+Measure(x, c)
+Print(c)

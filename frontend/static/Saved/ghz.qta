@@ -1,0 +1,7 @@
+// GHZ state on 3 qubits
+qbit[3] q
+bit[3] c
+
+GHZ(q)
+Measure(q, c)
+Print(c)
