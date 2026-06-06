@@ -47,7 +47,7 @@ document.addEventListener('DOMContentLoaded', () => {
     initializeGatePalette();
     initializeCircuitBuilder();
     initializeMonacoEditor();
-    setupEventListeners();
+    setupCircuitEventListeners();
     renderCircuit();
     updateQASMCode();
 });
@@ -1047,7 +1047,7 @@ function initializeMonacoEditor() {
     });
 }
 
-function setupEventListeners() {
+function setupCircuitEventListeners() {
     // Add qubit button - adds exactly one qubit
     const addQubitBtn = document.getElementById('addQubitBtn');
     if (addQubitBtn) {
@@ -1117,10 +1117,12 @@ function setupEventListeners() {
                 errorMessage.textContent = 'Please enter some OpenQASM 3 code';
                 errorDisplay.classList.remove('hidden');
             }
+            if (typeof switchRightTab === 'function') switchRightTab('output');
             return;
         }
         
         // Update UI
+        if (typeof switchRightTab === 'function') switchRightTab('output');
         if (runBtn) {
             runBtn.disabled = true;
             const originalHTML = runBtn.innerHTML;
@@ -1158,6 +1160,7 @@ function setupEventListeners() {
                     errorDisplay.classList.remove('hidden');
                     if (emptyState) emptyState.classList.add('hidden');
                 }
+                if (typeof switchRightTab === 'function') switchRightTab('output');
             }
         } catch (error) {
             if (errorDisplay && errorMessage) {
@@ -1165,6 +1168,7 @@ function setupEventListeners() {
                 errorDisplay.classList.remove('hidden');
                 if (emptyState) emptyState.classList.add('hidden');
             }
+            if (typeof switchRightTab === 'function') switchRightTab('output');
         } finally {
             if (runBtn) {
                 runBtn.disabled = false;
@@ -1194,6 +1198,7 @@ function setupEventListeners() {
         // Show results
         if (resultsDisplay) resultsDisplay.classList.remove('hidden');
         if (emptyState) emptyState.classList.add('hidden');
+        if (typeof switchRightTab === 'function') switchRightTab('output');
         
         // Draw histogram if function exists
         if (typeof drawHistogram === 'function' && histogramCanvas) {
@@ -1252,7 +1257,10 @@ function setupEventListeners() {
             e.preventDefault();
             
             // Get code from circuit builder's editor
-            const code = circuitBuilderMonacoEditor ? circuitBuilderMonacoEditor.getValue().trim() : '';
+            const rawCode = circuitBuilderMonacoEditor ? circuitBuilderMonacoEditor.getValue() : '';
+            const code = (typeof normalizeLineEndings === 'function'
+                ? normalizeLineEndings(rawCode)
+                : rawCode).trim();
             
             if (!code) {
                 alert('Please generate some OpenQASM 3 code to save');
@@ -1335,68 +1343,5 @@ function setupEventListeners() {
         });
     }
     
-    // Handle resize handles (reuse from app.js if available)
-    // The resize handles should work automatically if app.js is loaded
-    // But we can add a check to ensure they're set up
-    setTimeout(() => {
-        const horizontalResizeHandle = document.getElementById('horizontalResizeHandle');
-        const editorSection = document.getElementById('editorSection');
-        const circuitBuilderSection = document.getElementById('circuitBuilderSection');
-        const codeEditorSection = document.getElementById('codeEditorSection');
-        
-        if (horizontalResizeHandle && editorSection && circuitBuilderSection && codeEditorSection) {
-            // Setup resize if not already done by app.js
-            if (!horizontalResizeHandle.hasAttribute('data-resize-setup')) {
-                setupHorizontalResize(horizontalResizeHandle, circuitBuilderSection, codeEditorSection, editorSection);
-                horizontalResizeHandle.setAttribute('data-resize-setup', 'true');
-            }
-        }
-    }, 500);
-}
-
-function setupHorizontalResize(handle, leftSection, rightSection, container) {
-    let isResizing = false;
-    
-    handle.addEventListener('mousedown', (e) => {
-        isResizing = true;
-        document.body.classList.add('resizing');
-        document.body.style.cursor = 'col-resize';
-        document.body.style.userSelect = 'none';
-        e.preventDefault();
-    });
-    
-    document.addEventListener('mousemove', (e) => {
-        if (!isResizing) return;
-        
-        const containerRect = container.getBoundingClientRect();
-        const containerWidth = containerRect.width;
-        const handleWidth = handle.offsetWidth;
-        const availableWidth = containerWidth - handleWidth;
-        
-        const newLeftWidth = e.clientX - containerRect.left;
-        const newRightWidth = containerWidth - newLeftWidth - handleWidth;
-        
-        const minWidth = 200;
-        
-        if (newLeftWidth >= minWidth && newRightWidth >= minWidth && availableWidth > 0) {
-            const leftPercent = (newLeftWidth / availableWidth) * 100;
-            const rightPercent = (newRightWidth / availableWidth) * 100;
-            
-            leftSection.style.width = `${leftPercent}%`;
-            rightSection.style.width = `${rightPercent}%`;
-        }
-    });
-    
-    document.addEventListener('mouseup', () => {
-        if (isResizing) {
-            isResizing = false;
-            document.body.classList.remove('resizing');
-            document.body.style.cursor = '';
-            document.body.style.userSelect = '';
-            
-            // Save to localStorage
-            localStorage.setItem('circuitBuilderWidth', leftSection.style.width);
-            localStorage.setItem('codeEditorWidth', rightSection.style.width);
-        }
-    });
+    // Horizontal resize is handled by app.js
 }

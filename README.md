@@ -34,6 +34,7 @@ This project implements a full-stack quantum computing development environment t
 - **Configurable Editor Themes**: Customizable Monaco editor themes via config.json with separate configurations for OpenQASM 3 and Quanta languages
 - **Interactive Circuit Visualization**: Multi-color circuit diagrams matching code syntax highlighting (blue for measure, cyan for gates, yellow for functions)
 - **Resizable Panels**: Adjustable code editor and circuit diagram sections with persistent layout preferences
+- **Tabbed Results Panel**: Right-side tabbed interface for Circuit Diagram / Generated QASM and Simulation Results, with Run controls in the output tab
 - **Dirac Notation Display**: Quantum state representation in standard bra-ket notation (|000⟩, |001⟩, etc.)
 
 ## Architecture
@@ -79,8 +80,16 @@ Quantum_Programming_IDE/
 │
 ├── setup.bat                   # Windows setup script
 ├── start.bat                   # Windows start script
+├── testcase.bat                # Run automated backend and UI tests
 ├── compile.bat                 # PyInstaller build script for standalone executable
 ├── QuantumIDE.spec             # PyInstaller specification file
+├── test case/                  # Automated test suite (samples, API tests, UI tests)
+│   ├── bell.qasm               # Sample Bell-state circuit
+│   ├── superposition.qasm      # Sample superposition circuit
+│   ├── test_api.py             # Backend unit and HTTP API tests
+│   ├── test_ui.mjs             # Playwright browser UI tests
+│   ├── package.json            # UI test dependencies (Playwright)
+│   └── README.md               # Test suite documentation
 └── README.md                   # This file
 ```
 
@@ -142,6 +151,23 @@ Quantum_Programming_IDE/
 
    The application will be available at `http://127.0.0.1:5010`
 
+### Running Tests
+
+Automated tests live in the `test case/` folder and can be run from the project root:
+
+```batch
+testcase.bat
+```
+
+This script:
+
+1. Starts the Flask server temporarily if it is not already running
+2. Runs backend unit tests and HTTP API tests (`test case/test_api.py`)
+3. Installs Playwright (first run only) and runs browser UI tests (`test case/test_ui.mjs`)
+4. Stops the temporary server when finished
+
+See `test case/README.md` for running individual test stages manually.
+
 ### Building Standalone Executable
 
 The project includes PyInstaller support for creating a single-file, portable executable that includes all dependencies and can run without Python installation.
@@ -199,8 +225,9 @@ The application will start and be available at `http://127.0.0.1:5010`. User-sav
 1. **Access the Compiler**: Navigate to `http://127.0.0.1:5010/compiler` in your web browser
 2. **Write OpenQASM 3 Code**: Enter your quantum circuit definition in the code editor
 3. **Configure Simulation**: Set the number of measurement shots (default: 1024)
-4. **Execute Simulation**: Click "Run Simulation" or press `Ctrl+Enter`
-5. **Analyze Results**: Review the histogram visualization and measurement statistics
+4. **Open Simulation Results**: Switch to the **Simulation Results** tab on the right panel
+5. **Execute Simulation**: Click **Run** or press `Ctrl+Enter` in the editor
+6. **Analyze Results**: Review the histogram visualization and measurement statistics
 
 #### Using the Circuit Builder
 
@@ -209,8 +236,8 @@ The application will start and be available at `http://127.0.0.1:5010`. User-sav
 3. **Drag Gates**: Drag gates from the palette on the left sidebar onto the circuit canvas
 4. **Position Gates**: Drop gates on qubit lines at desired column positions
 5. **Move Gates**: Click and drag existing gates to reposition them
-6. **View Generated Code**: Watch the QASM code update in real-time on the right side
-7. **Run Simulation**: Click "Run" to execute the circuit and view results
+6. **View Generated Code**: Open the **Generated QASM Code** tab on the right panel
+7. **Run Simulation**: Switch to **Simulation Results** and click **Run**
 8. **Save Circuit**: Save the generated QASM code for future use
 
 ### OpenQASM 3 Syntax Support
@@ -785,6 +812,14 @@ For questions, technical issues, collaboration inquiries, or research partnershi
 
 ## Version History
 
+- **v1.1.4** (2026-06-06): Tabbed right panel and automated test suite
+
+  - Added tabbed right panel on compiler and circuit pages (Circuit Diagram / Generated QASM and Simulation Results)
+  - Moved Run button into the Simulation Results tab
+  - Fixed circuit page tab switching (`setupCircuitEventListeners` no longer overrides app.js tab setup)
+  - Added `test case/` folder with sample circuits, API tests, and Playwright UI tests
+  - Added `testcase.bat` to run the full automated test suite on Windows
+
 - **v1.1.3** (2026-01-21): Enhanced circuit builder with independent component dragging and theme support
 
   - Improved multi-qubit gate dragging with independent control and target component movement
@@ -871,5 +906,5 @@ For questions, technical issues, collaboration inquiries, or research partnershi
 
 ---
 
-**Version**: 1.1.3
-**Last Updated**: 2026-01-21
+**Version**: 1.1.4
+**Last Updated**: 2026-06-06

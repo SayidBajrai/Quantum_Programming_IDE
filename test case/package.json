@@ -1,0 +1,12 @@
+{
+  "name": "quantum-ide-test-case",
+  "private": true,
+  "type": "module",
+  "description": "UI test dependencies for Quantum Programming IDE",
+  "scripts": {
+    "test:ui": "node test_ui.mjs"
+  },
+  "devDependencies": {
+    "playwright": "^1.49.0"
+  }
+}

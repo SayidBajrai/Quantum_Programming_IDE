@@ -1,0 +1,13 @@
+// Bell state example 
+qubit[2] q 
+bit[2] c  
+
+gate Bell(a, b) { 
+    H(a) 
+    CNot(a, b) 
+} 
+
+Bell(q[0], q[1])
+
+Measure(q, c)
+Print(c)

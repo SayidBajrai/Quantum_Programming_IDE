@@ -496,11 +496,13 @@ def save_file():
         saved_dir = get_saved_dir()
         os.makedirs(saved_dir, exist_ok=True)
         
+        code = code.replace('\r\n', '\n').replace('\r', '\n')
+        
         # Full file path
         file_path = os.path.join(saved_dir, filename)
         
-        # Write the file
-        with open(file_path, 'w', encoding='utf-8') as f:
+        # Write the file with Unix line endings to avoid Windows CRLF doubling
+        with open(file_path, 'w', encoding='utf-8', newline='\n') as f:
             f.write(code)
         
         return jsonify({

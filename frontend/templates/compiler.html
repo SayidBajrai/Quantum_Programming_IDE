@@ -56,7 +56,7 @@
     <div class="grid grid-cols-[auto_1fr] h-[calc(100vh-53px)]">
         <!-- Sidebar -->
         <div id="sidebar"
-            class="w-64 bg-[#1a1a1a] border-r border-gray-800 p-4 transition-all duration-300 overflow-hidden">
+            class="w-64 bg-[#1a1a1a] border-r border-gray-800 p-2 transition-all duration-300 overflow-hidden">
             <div class="flex items-center justify-between mb-4">
                 <h2 class="text-sm font-semibold text-gray-300">Menu</h2>
             </div>
@@ -106,10 +106,10 @@
 
         <!-- Main Content -->
         <div class="flex flex-col min-w-0 h-full">
-            <!-- Code Editor and Circuit Diagram Section -->
-            <div id="editorSection" class="flex gap-0" style="height: 60%; min-height: 300px;">
+            <!-- Code Editor and Right Panel -->
+            <div id="editorSection" class="flex gap-0 flex-1 min-h-0">
                 <!-- Code Editor Section -->
-                <div id="codeEditorSection" class="flex flex-col" style="width: 50%; min-width: 200px;">
+                <div id="codeEditorSection" class="flex flex-col min-h-0" style="width: 50%; min-width: 200px;">
                     <div class="mb-0 flex items-center justify-between p-4">
                         <div class="flex items-center space-x-2">
                             <span class="text-lg font-semibold">Code:</span>
@@ -128,10 +128,6 @@
                                 class="px-3 py-0 bg-gray-800 hover:bg-gray-700 rounded-lg font-semibold transition text-gray-100">
                                 <svg id="saveBtnIcon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"></path><path d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7"></path><path d="M7 3v4a1 1 0 0 0 1 1h7"></path></svg>
                             </button>
-                            <button id="runBtn"
-                                class="px-3 py-0 bg-gray-800 hover:bg-gray-700 rounded-lg font-semibold transition text-gray-100">
-                                <svg id="runBtnIcon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="6 3 20 12 6 21 6 3"></polygon></svg>
-                            </button>
                         </div>
                     </div>
 
@@ -147,60 +143,67 @@
                     <div class="h-24 w-1 bg-gray-600 group-hover:bg-gray-500 rounded-full transition-colors"></div>
                 </div>
 
-                <!-- Circuit Diagram Section -->
-                <div id="circuitDiagramSection" class="flex flex-col" style="width: 50%; min-width: 200px;">
-                    <div class="mb-0 flex items-center justify-between p-4">
-                        <div class="flex items-center space-x-2">
-                            <h2 class="text-lg font-semibold">Circuit Diagram</h2>
-                            <button id="downloadCircuitBtn"
-                                class="px-3 py-0 bg-gray-800 hover:bg-gray-700 rounded-lg font-semibold transition text-gray-100"
-                                title="Download Circuit Diagram as PNG">
-                                <svg id="downloadCircuitBtnIcon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-                                    <polyline points="7 10 12 15 17 10"></polyline>
-                                    <line x1="12" y1="15" x2="12" y2="3"></line>
-                                </svg>
-                            </button>
-                        </div>
-                        <div id="circuitStatus" class="text-sm text-gray-400">
-                            Ready
-                        </div>
+                <!-- Right Section (tabbed: Circuit Diagram & Output) -->
+                <div id="rightSection" class="flex flex-col min-h-0" style="width: 50%; min-width: 200px;">
+                    <div id="rightSectionTabs" class="flex border-b border-gray-800 bg-[#1a1a1a] shrink-0">
+                        <button type="button" data-tab="circuit" class="right-tab active px-4 py-2 text-sm font-medium">
+                            Circuit Diagram
+                        </button>
+                        <button type="button" data-tab="output" class="right-tab px-4 py-2 text-sm font-medium">
+                            Simulation Results
+                        </button>
                     </div>
 
-                    <div id="circuitDiagramContainer"
-                        class="flex-1 border border-gray-800 rounded-lg overflow-auto bg-black p-4">
-                        <div id="circuitDiagram" class="flex items-center justify-center min-h-full">
-                            <div class="text-center text-gray-500">
-                                <div id="circuitEmptyIcon" class="text-4xl mb-2 flex items-center justify-center">
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                        <circle cx="12" cy="12" r="1"></circle>
-                                        <path d="M20.2 20.2c2.04-2.03.02-7.36-4.5-11.9-4.54-4.52-9.87-6.54-11.9-4.5-2.04 2.03-.02 7.36 4.5 11.9 4.54 4.52 9.87 6.54 11.9 4.5Z"></path>
-                                        <path d="M15.7 15.7c4.52-4.54 6.54-9.87 4.5-11.9-2.03-2.04-7.36-.02-11.9 4.5-4.52 4.54-6.54 9.87-4.5 11.9 2.03 2.04 7.36.02 11.9-4.5Z"></path>
-                                    </svg>
+                    <div id="rightSectionPanels" class="flex-1 min-h-0 overflow-hidden">
+                        <!-- Circuit Diagram Section -->
+                        <div id="circuitDiagramSection" class="tab-panel flex flex-col h-full" data-tab-panel="circuit">
+                            <div class="mb-0 flex items-center justify-between p-4 shrink-0">
+                                <div class="flex items-center space-x-2">
+                                    <button id="downloadCircuitBtn"
+                                        class="px-3 py-0 bg-gray-800 hover:bg-gray-700 rounded-lg font-semibold transition text-gray-100"
+                                        title="Download Circuit Diagram as PNG">
+                                        <svg id="downloadCircuitBtnIcon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                                            <polyline points="7 10 12 15 17 10"></polyline>
+                                            <line x1="12" y1="15" x2="12" y2="3"></line>
+                                        </svg>
+                                    </button>
                                 </div>
-                                <div class="text-sm">Circuit diagram will appear here</div>
-                                <div class="text-xs mt-2 text-gray-600">Start typing to see real-time preview</div>
+                                <div id="circuitStatus" class="text-sm text-gray-400">
+                                    Ready
+                                </div>
+                            </div>
+
+                            <div id="circuitDiagramContainer"
+                                class="flex-1 border border-gray-800 rounded-lg overflow-auto bg-black p-4 mx-0 mb-4">
+                                <div id="circuitDiagram" class="flex items-center justify-center min-h-full">
+                                    <div class="text-center text-gray-500">
+                                        <div id="circuitEmptyIcon" class="text-4xl mb-2 flex items-center justify-center">
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                                <circle cx="12" cy="12" r="1"></circle>
+                                                <path d="M20.2 20.2c2.04-2.03.02-7.36-4.5-11.9-4.54-4.52-9.87-6.54-11.9-4.5-2.04 2.03-.02 7.36 4.5 11.9 4.54 4.52 9.87 6.54 11.9 4.5Z"></path>
+                                                <path d="M15.7 15.7c4.52-4.54 6.54-9.87 4.5-11.9-2.03-2.04-7.36-.02-11.9 4.5-4.52 4.54-6.54 9.87-4.5 11.9 2.03 2.04 7.36.02 11.9-4.5Z"></path>
+                                            </svg>
+                                        </div>
+                                        <div class="text-sm">Circuit diagram will appear here</div>
+                                        <div class="text-xs mt-2 text-gray-600">Start typing to see real-time preview</div>
+                                    </div>
+                                </div>
                             </div>
                         </div>
-                    </div>
-                </div>
-            </div>
 
-            <!-- Resize Handle -->
-            <div id="resizeHandle"
-                class="h-2 bg-gray-800 hover:bg-gray-700 cursor-row-resize transition-colors flex items-center justify-center group">
-                <div class="w-24 h-1 bg-gray-600 group-hover:bg-gray-500 rounded-full transition-colors"></div>
-            </div>
-
-            <!-- Output Section style="height: 40%; min-height: 200px;"-->
-            <div id="outputSection" class="border-t border-gray-800 bg-[#1a1a1a] p-4 theme-output overflow-auto"
-                >
-                <div class="flex items-center justify-between mb-4">
-                    <h2 class="text-lg font-semibold">Simulation Results</h2>
-                    <div id="statusIndicator" class="text-sm text-gray-400">
-                        Ready
-                    </div>
-                </div>
+                        <!-- Output Section -->
+                        <div id="outputSection" class="tab-panel hidden flex flex-col h-full bg-[#1a1a1a] p-4 theme-output overflow-auto" data-tab-panel="output">
+                            <div class="flex items-center justify-between mb-4 shrink-0">
+                                <button id="runBtn"
+                                    class="px-3 py-0 bg-gray-800 hover:bg-gray-700 rounded-lg font-semibold transition text-gray-100"
+                                    title="Run simulation">
+                                    <svg id="runBtnIcon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="6 3 20 12 6 21 6 3"></polygon></svg>
+                                </button>
+                                <div id="statusIndicator" class="text-sm text-gray-400">
+                                    Ready
+                                </div>
+                            </div>
 
                 <!-- Error Display -->
                 <div id="errorDisplay" class="hidden mb-4 p-4 bg-red-900/30 border border-red-700 rounded-lg">
@@ -247,6 +250,9 @@
                         </svg>
                     </div>
                     <div>Run a simulation to see results here</div>
+                </div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>

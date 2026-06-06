@@ -94,10 +94,10 @@
 
         <!-- Main Content -->
         <div class="flex flex-col min-w-0 h-full">
-            <!-- Circuit Builder and Code Editor Section -->
-            <div id="editorSection" class="flex gap-0" style="height: 60%; min-height: 300px;">
+            <!-- Circuit Builder and Right Panel -->
+            <div id="editorSection" class="flex gap-0 flex-1 min-h-0">
                 <!-- Circuit Builder Section (LEFT) -->
-                <div id="circuitBuilderSection" class="flex flex-col" style="width: 50%; min-width: 200px;">
+                <div id="circuitBuilderSection" class="flex flex-col min-h-0" style="width: 50%; min-width: 200px;">
                     <div class="mb-0 flex items-center justify-between p-4">
                         <div class="flex items-center space-x-2">
                             <h2 class="text-lg font-semibold">Circuit Builder</h2>
@@ -140,48 +140,52 @@
                     <div class="h-24 w-1 bg-gray-600 group-hover:bg-gray-500 rounded-full transition-colors"></div>
                 </div>
 
-                <!-- Code Editor Section (RIGHT, non-editable) -->
-                <div id="codeEditorSection" class="flex flex-col" style="width: 50%; min-width: 200px;">
-                    <div class="mb-0 flex items-center justify-between p-4">
-                        <h2 class="text-lg font-semibold">Generated QASM Code</h2>
-                        <div class="flex items-center space-x-4">
-                            <label class="flex items-center space-x-2">
-                                <span class="text-sm text-gray-400">Shots:</span>
-                                <input type="number" id="shotsInput" value="1024" min="1" max="100000"
-                                    class="w-24 px-3 py-0 bg-gray-800 border border-gray-700 rounded text-sm">
-                            </label>
-                            <button id="saveBtn"
-                                class="px-3 py-0 bg-gray-800 hover:bg-gray-700 rounded-lg font-semibold transition text-gray-100">
-                                <svg id="saveBtnIcon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"></path><path d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7"></path><path d="M7 3v4a1 1 0 0 0 1 1h7"></path></svg>
-                            </button>
-                            <button id="runBtn"
-                                class="px-3 py-0 bg-gray-800 hover:bg-gray-700 rounded-lg font-semibold transition text-gray-100">
-                                <svg id="runBtnIcon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="6 3 20 12 6 21 6 3"></polygon></svg>
-                            </button>
+                <!-- Right Section (tabbed: Generated QASM & Output) -->
+                <div id="rightSection" class="flex flex-col min-h-0" style="width: 50%; min-width: 200px;">
+                    <div id="rightSectionTabs" class="flex border-b border-gray-800 bg-[#1a1a1a] shrink-0">
+                        <button type="button" data-tab="code" class="right-tab active px-4 py-2 text-sm font-medium">
+                            Generated QASM Code
+                        </button>
+                        <button type="button" data-tab="output" class="right-tab px-4 py-2 text-sm font-medium">
+                            Simulation Results
+                        </button>
+                    </div>
+
+                    <div id="rightSectionPanels" class="flex-1 min-h-0 overflow-hidden">
+                        <!-- Code Editor Section -->
+                        <div id="codeEditorSection" class="tab-panel flex flex-col h-full" data-tab-panel="code">
+                            <div class="mb-0 flex items-center justify-end p-4 shrink-0">
+                                <div class="flex items-center space-x-4">
+                                    <label class="flex items-center space-x-2">
+                                        <span class="text-sm text-gray-400">Shots:</span>
+                                        <input type="number" id="shotsInput" value="1024" min="1" max="100000"
+                                            class="w-24 px-3 py-0 bg-gray-800 border border-gray-700 rounded text-sm">
+                                    </label>
+                                    <button id="saveBtn"
+                                        class="px-3 py-0 bg-gray-800 hover:bg-gray-700 rounded-lg font-semibold transition text-gray-100">
+                                        <svg id="saveBtnIcon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"></path><path d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7"></path><path d="M7 3v4a1 1 0 0 0 1 1h7"></path></svg>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div
+                                class="flex-1 border border-gray-800 rounded-lg overflow-hidden bg-black theme-editor-container mx-4 mb-4">
+                                <div id="codeEditor" style="width: 100%; height: 100%;"></div>
+                            </div>
                         </div>
-                    </div>
 
-                    <div
-                        class="flex-1 border border-gray-800 rounded-lg overflow-hidden bg-black theme-editor-container">
-                        <div id="codeEditor" style="width: 100%; height: 100%;"></div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Resize Handle -->
-            <div id="resizeHandle"
-                class="h-2 bg-gray-800 hover:bg-gray-700 cursor-row-resize transition-colors flex items-center justify-center group">
-                <div class="w-24 h-1 bg-gray-600 group-hover:bg-gray-500 rounded-full transition-colors"></div>
-            </div>
-
-            <!-- Output Section -->
-            <div id="outputSection" class="border-t border-gray-800 bg-[#1a1a1a] p-4 theme-output overflow-auto">
-                <div class="flex items-center justify-between mb-4">
-                    <h2 class="text-lg font-semibold">Simulation Results</h2>
-                    <div id="statusIndicator" class="text-sm text-gray-400">
-                        Ready
-                    </div>
-                </div>
+                        <!-- Output Section -->
+                        <div id="outputSection" class="tab-panel hidden flex flex-col h-full bg-[#1a1a1a] p-4 theme-output overflow-auto" data-tab-panel="output">
+                            <div class="flex items-center justify-between mb-4 shrink-0">
+                                <button id="runBtn"
+                                    class="px-3 py-0 bg-gray-800 hover:bg-gray-700 rounded-lg font-semibold transition text-gray-100"
+                                    title="Run simulation">
+                                    <svg id="runBtnIcon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="6 3 20 12 6 21 6 3"></polygon></svg>
+                                </button>
+                                <div id="statusIndicator" class="text-sm text-gray-400">
+                                    Ready
+                                </div>
+                            </div>
 
                 <!-- Error Display -->
                 <div id="errorDisplay" class="hidden mb-4 p-4 bg-red-900/30 border border-red-700 rounded-lg">
@@ -229,6 +233,9 @@
                     </div>
                     <div>Run a simulation to see results here</div>
                 </div>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -274,7 +281,7 @@
             });
             
             // Update resize handles
-            const resizeHandles = document.querySelectorAll('#horizontalResizeHandle, #resizeHandle');
+            const resizeHandles = document.querySelectorAll('#horizontalResizeHandle');
             resizeHandles.forEach(handle => {
                 handle.className = handle.className.replace(/bg-gray-800|bg-gray-200/g, isDark ? 'bg-gray-800' : 'bg-gray-200');
                 handle.className = handle.className.replace(/hover:bg-gray-700|hover:bg-gray-300/g, isDark ? 'hover:bg-gray-700' : 'hover:bg-gray-300');

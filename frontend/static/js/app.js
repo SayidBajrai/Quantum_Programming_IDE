@@ -30,6 +30,7 @@ const editorSection = document.getElementById('editorSection');
 const outputSection = document.getElementById('outputSection');
 const codeEditorSection = document.getElementById('codeEditorSection');
 const circuitDiagramSection = document.getElementById('circuitDiagramSection');
+const rightSection = document.getElementById('rightSection');
 const savedToggle = document.getElementById('savedToggle');
 const savedExamples = document.getElementById('savedExamples');
 const codeFormatSelect = document.getElementById('codeFormatSelect');
@@ -55,6 +56,10 @@ async function loadMonacoThemeConfig() {
     }
 }
 
+function normalizeLineEndings(text) {
+    return text.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+}
+
 // Load saved examples from files
 async function loadSavedExample(exampleName) {
     try {
@@ -68,7 +73,7 @@ async function loadSavedExample(exampleName) {
         if (!response.ok) {
             throw new Error(`Failed to load ${filename}`);
         }
-        return await response.text();
+        return normalizeLineEndings(await response.text());
     } catch (error) {
         console.error(`Error loading ${exampleName}:`, error);
         return '';
@@ -226,6 +231,8 @@ function initializeMonacoEditor() {
             formatOnPaste: false,
             formatOnType: false
         });
+
+        window.monacoEditor = monacoEditor;
         
         // Set up real-time error detection
         setupMonacoErrorDetection();
@@ -351,92 +358,51 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 function loadResizeState() {
-    if (editorSection && outputSection) {
-        const savedEditorHeight = localStorage.getItem('editorHeight');
-        const savedOutputHeight = localStorage.getItem('outputHeight');
-        
-        if (savedEditorHeight && savedOutputHeight) {
-            editorSection.style.height = savedEditorHeight;
-            outputSection.style.height = savedOutputHeight;
-        }
-    }
-    
-    // Load horizontal resize state
-    if (codeEditorSection && circuitDiagramSection) {
-        const savedCodeEditorWidth = localStorage.getItem('codeEditorWidth');
-        const savedCircuitDiagramWidth = localStorage.getItem('circuitDiagramWidth');
-        
-        if (savedCodeEditorWidth && savedCircuitDiagramWidth) {
-            codeEditorSection.style.width = savedCodeEditorWidth;
-            circuitDiagramSection.style.width = savedCircuitDiagramWidth;
+    const resizeTarget = rightSection || circuitDiagramSection;
+    const resizeLeft = document.getElementById('circuitBuilderSection') || codeEditorSection;
+    if (resizeLeft && resizeTarget) {
+        const savedLeftWidth = localStorage.getItem('codeEditorWidth');
+        const savedRightWidth = localStorage.getItem('circuitDiagramWidth');
+
+        if (savedLeftWidth && savedRightWidth) {
+            resizeLeft.style.width = savedLeftWidth;
+            resizeTarget.style.width = savedRightWidth;
         }
     }
 }
 
 function updateResizeOnWindowResize() {
-    // Update vertical resize (editor vs output sections)
-    if (editorSection && outputSection) {
-        const savedEditorHeight = localStorage.getItem('editorHeight');
-        const savedOutputHeight = localStorage.getItem('outputHeight');
-        
-        // If we have saved percentage values, maintain them
-        if (savedEditorHeight && savedEditorHeight.includes('%')) {
-            editorSection.style.height = savedEditorHeight;
-            outputSection.style.height = savedOutputHeight;
-        } else if (savedEditorHeight && savedEditorHeight.includes('px')) {
-            // Convert pixel values to percentages based on current container size
-            const container = editorSection.parentElement;
-            if (container) {
-                const containerHeight = container.offsetHeight;
-                const editorHeightPx = parseFloat(savedEditorHeight);
-                const outputHeightPx = parseFloat(savedOutputHeight);
-                
-                if (containerHeight > 0) {
-                    const editorPercent = (editorHeightPx / containerHeight) * 100;
-                    const outputPercent = (outputHeightPx / containerHeight) * 100;
-                    
-                    editorSection.style.height = `${editorPercent}%`;
-                    outputSection.style.height = `${outputPercent}%`;
-                }
-            }
-        }
-    }
-    
-    // Update horizontal resize (code editor vs circuit diagram)
-    if (codeEditorSection && circuitDiagramSection) {
-        const savedCodeEditorWidth = localStorage.getItem('codeEditorWidth');
-        const savedCircuitDiagramWidth = localStorage.getItem('circuitDiagramWidth');
-        
-        // If we have saved values, apply them (they should be percentages now)
-        if (savedCodeEditorWidth && savedCircuitDiagramWidth) {
-            // Handle both percentage and pixel values for backward compatibility
-            if (savedCodeEditorWidth.includes('%')) {
-                // Percentages - apply directly
-                codeEditorSection.style.width = savedCodeEditorWidth;
-                circuitDiagramSection.style.width = savedCircuitDiagramWidth;
-            } else if (savedCodeEditorWidth.includes('px')) {
-                // Legacy pixel values - convert to percentages
+    const resizeTarget = rightSection || circuitDiagramSection;
+    const resizeLeft = document.getElementById('circuitBuilderSection') || codeEditorSection;
+
+    if (resizeLeft && resizeTarget) {
+        const savedLeftWidth = localStorage.getItem('codeEditorWidth');
+        const savedRightWidth = localStorage.getItem('circuitDiagramWidth');
+
+        if (savedLeftWidth && savedRightWidth) {
+            if (savedLeftWidth.includes('%')) {
+                resizeLeft.style.width = savedLeftWidth;
+                resizeTarget.style.width = savedRightWidth;
+            } else if (savedLeftWidth.includes('px')) {
                 const container = editorSection;
                 if (container) {
                     const containerWidth = container.offsetWidth;
                     const resizeHandleWidth = horizontalResizeHandle ? horizontalResizeHandle.offsetWidth : 8;
                     const availableWidth = containerWidth - resizeHandleWidth;
-                    
-                    const codeEditorWidthPx = parseFloat(savedCodeEditorWidth);
-                    const circuitDiagramWidthPx = parseFloat(savedCircuitDiagramWidth);
-                    const totalSavedWidth = codeEditorWidthPx + circuitDiagramWidthPx;
-                    
+
+                    const leftWidthPx = parseFloat(savedLeftWidth);
+                    const rightWidthPx = parseFloat(savedRightWidth);
+                    const totalSavedWidth = leftWidthPx + rightWidthPx;
+
                     if (totalSavedWidth > 0 && availableWidth > 0) {
-                        // Convert to percentages
-                        const codeEditorPercent = (codeEditorWidthPx / availableWidth) * 100;
-                        const circuitDiagramPercent = (circuitDiagramWidthPx / availableWidth) * 100;
-                        
-                        codeEditorSection.style.width = `${codeEditorPercent}%`;
-                        circuitDiagramSection.style.width = `${circuitDiagramPercent}%`;
-                        
-                        // Update localStorage with percentages for future use
-                        localStorage.setItem('codeEditorWidth', codeEditorSection.style.width);
-                        localStorage.setItem('circuitDiagramWidth', circuitDiagramSection.style.width);
+                        const leftPercent = (leftWidthPx / availableWidth) * 100;
+                        const rightPercent = (rightWidthPx / availableWidth) * 100;
+
+                        resizeLeft.style.width = `${leftPercent}%`;
+                        resizeTarget.style.width = `${rightPercent}%`;
+
+                        localStorage.setItem('codeEditorWidth', resizeLeft.style.width);
+                        localStorage.setItem('circuitDiagramWidth', resizeTarget.style.width);
                     }
                 }
             }
@@ -703,7 +669,11 @@ async function deleteFile(filename) {
 } 
 
 function setupEventListeners() {
-    runBtn.addEventListener('click', runSimulation);
+    setupRightSectionTabs();
+
+    if (runBtn) {
+        runBtn.addEventListener('click', runSimulation);
+    }
     if (saveBtn) {
         saveBtn.addEventListener('click', saveFile);
     }
@@ -777,80 +747,76 @@ function setupEventListeners() {
         });
     }
     
-    // Keyboard shortcut: Ctrl+Enter to run
-    codeEditor.addEventListener('keydown', (e) => {
-        if (e.ctrlKey && e.key === 'Enter') {
-            runSimulation();
-        }
-    });
-    
-    // Real-time circuit diagram updates (debounced)
-    let circuitUpdateTimeout;
-    codeEditor.addEventListener('input', () => {
-        clearTimeout(circuitUpdateTimeout);
-        circuitUpdateTimeout = setTimeout(() => {
-            updateCircuitDiagram();
-        }, 500); // 500ms debounce
-    });
-    
-    // Drag and drop support for .qasm files
-    codeEditor.addEventListener('dragover', (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        codeEditor.classList.add('border-green-500');
-    });
-    
-    codeEditor.addEventListener('dragleave', (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        codeEditor.classList.remove('border-green-500');
-    });
-    
-    codeEditor.addEventListener('drop', (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        codeEditor.classList.remove('border-green-500');
-        
-        const files = e.dataTransfer.files;
-        if (files.length > 0) {
-            const file = files[0];
-            const filename = file.name.toLowerCase();
-            if (filename.endsWith('.qasm') || filename.endsWith('.qasm3') || filename.endsWith('.qta')) {
-                const reader = new FileReader();
-                reader.onload = (event) => {
-                    if (monacoEditor) {
-                        // Detect file extension and set language selector accordingly
-                        let detectedLanguage = 'openqasm3';
-                        let detectedTheme = 'openqasm-theme';
-                        
-                        if (filename.endsWith('.qta')) {
-                            detectedLanguage = 'quanta';
-                            detectedTheme = 'quanta-theme';
-                        } else {
-                            detectedLanguage = 'openqasm3';
-                            detectedTheme = 'openqasm-theme';
-                        }
-                        
-                        // Update language selector if it exists
-                        if (codeFormatSelect) {
-                            codeFormatSelect.value = detectedLanguage;
-                            localStorage.setItem('codeFormat', detectedLanguage);
-                        }
-                        
-                        // Update Monaco editor language and theme
-                        monaco.editor.setModelLanguage(monacoEditor.getModel(), detectedLanguage);
-                        monacoEditor.updateOptions({ theme: detectedTheme });
-                        
-                        monacoEditor.setValue(event.target.result);
-                    }
-                    updateCircuitDiagram();
-                };
-                reader.readAsText(file);
-            } else {
-                alert('Please drop a .qasm, .qasm3, or .qta file');
+    // Compiler editor listeners (not used on circuit builder page)
+    if (codeEditorContainer && !document.getElementById('circuitBuilder')) {
+        // Keyboard shortcut: Ctrl+Enter to run
+        codeEditorContainer.addEventListener('keydown', (e) => {
+            if (e.ctrlKey && e.key === 'Enter') {
+                runSimulation();
             }
-        }
-    });
+        });
+
+        // Real-time circuit diagram updates (debounced)
+        let circuitUpdateTimeout;
+        codeEditorContainer.addEventListener('input', () => {
+            clearTimeout(circuitUpdateTimeout);
+            circuitUpdateTimeout = setTimeout(() => {
+                updateCircuitDiagram();
+            }, 500);
+        });
+
+        // Drag and drop support for .qasm files
+        codeEditorContainer.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            codeEditorContainer.classList.add('border-green-500');
+        });
+
+        codeEditorContainer.addEventListener('dragleave', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            codeEditorContainer.classList.remove('border-green-500');
+        });
+
+        codeEditorContainer.addEventListener('drop', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            codeEditorContainer.classList.remove('border-green-500');
+
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                const file = files[0];
+                const filename = file.name.toLowerCase();
+                if (filename.endsWith('.qasm') || filename.endsWith('.qasm3') || filename.endsWith('.qta')) {
+                    const reader = new FileReader();
+                    reader.onload = (event) => {
+                        if (monacoEditor) {
+                            let detectedLanguage = 'openqasm3';
+                            let detectedTheme = 'openqasm-theme';
+
+                            if (filename.endsWith('.qta')) {
+                                detectedLanguage = 'quanta';
+                                detectedTheme = 'quanta-theme';
+                            }
+
+                            if (codeFormatSelect) {
+                                codeFormatSelect.value = detectedLanguage;
+                                localStorage.setItem('codeFormat', detectedLanguage);
+                            }
+
+                            monaco.editor.setModelLanguage(monacoEditor.getModel(), detectedLanguage);
+                            monacoEditor.updateOptions({ theme: detectedTheme });
+                            monacoEditor.setValue(normalizeLineEndings(event.target.result));
+                        }
+                        updateCircuitDiagram();
+                    };
+                    reader.readAsText(file);
+                } else {
+                    alert('Please drop a .qasm, .qasm3, or .qta file');
+                }
+            }
+        });
+    }
     
     // Vertical resize handle functionality (between editor and output sections)
     if (resizeHandle && editorSection && outputSection) {
@@ -929,20 +895,21 @@ function setupEventListeners() {
         document.addEventListener('mouseup', handleMouseUp);
     }
     
-    // Horizontal resize handle functionality (between code editor and circuit diagram)
-    if (horizontalResizeHandle && codeEditorSection && circuitDiagramSection) {
+    // Horizontal resize handle functionality (between code editor and right panel)
+    const resizeTarget = rightSection || circuitDiagramSection;
+    const resizeLeft = document.getElementById('circuitBuilderSection') || codeEditorSection;
+    if (horizontalResizeHandle && resizeLeft && resizeTarget && !horizontalResizeHandle.hasAttribute('data-resize-setup')) {
         let isResizingHorizontal = false;
         let startX = 0;
-        let startCodeEditorWidth = 0;
-        let startCircuitDiagramWidth = 0;
+        let startLeftWidth = 0;
+        let startRightWidth = 0;
         
         horizontalResizeHandle.addEventListener('mousedown', (e) => {
             isResizingHorizontal = true;
             startX = e.clientX;
-            startCodeEditorWidth = codeEditorSection.offsetWidth;
-            startCircuitDiagramWidth = circuitDiagramSection.offsetWidth;
-            document.body.classList.add('resizing');
-            document.body.style.cursor = 'col-resize';
+            startLeftWidth = resizeLeft.offsetWidth;
+            startRightWidth = resizeTarget.offsetWidth;
+            document.body.classList.add('resizing', 'cursor-col-resize');
             document.body.style.userSelect = 'none';
             e.preventDefault();
         });
@@ -950,44 +917,105 @@ function setupEventListeners() {
         document.addEventListener('mousemove', (e) => {
             if (!isResizingHorizontal) return;
             
-            //const deltaX = e.clientX - startX;
             const container = editorSection;
             const containerX = container.offsetLeft;
             const containerWidth = container.offsetWidth;
             const resizeHandleWidth = horizontalResizeHandle.offsetWidth;
             const availableWidth = containerWidth - resizeHandleWidth;
             
-            const newCodeEditorWidth = e.clientX - containerX;
-            const newCircuitDiagramWidth = containerWidth - newCodeEditorWidth;
+            const newLeftWidth = e.clientX - containerX;
+            const newRightWidth = containerWidth - newLeftWidth;
             
-            // Minimum widths
             const minWidth = 200;
             
-            if (newCodeEditorWidth >= minWidth && newCircuitDiagramWidth >= minWidth && availableWidth > 0) {
-                // Save as percentages for better scaling on window resize
-                const codeEditorPercent = (newCodeEditorWidth / availableWidth) * 100;
-                const circuitDiagramPercent = (newCircuitDiagramWidth / availableWidth) * 100;
+            if (newLeftWidth >= minWidth && newRightWidth >= minWidth && availableWidth > 0) {
+                const leftPercent = (newLeftWidth / availableWidth) * 100;
+                const rightPercent = (newRightWidth / availableWidth) * 100;
                 
-                codeEditorSection.style.width = `${codeEditorPercent}%`;
-                circuitDiagramSection.style.width = `${circuitDiagramPercent}%`;
+                resizeLeft.style.width = `${leftPercent}%`;
+                resizeTarget.style.width = `${rightPercent}%`;
             }
         });
         
         const handleMouseUpHorizontal = () => {
             if (isResizingHorizontal) {
                 isResizingHorizontal = false;
-                document.body.classList.remove('resizing');
-                document.body.style.cursor = '';
+                document.body.classList.remove('resizing', 'cursor-col-resize');
                 document.body.style.userSelect = '';
                 
-                // Save widths to localStorage (as percentages)
-                localStorage.setItem('codeEditorWidth', codeEditorSection.style.width);
-                localStorage.setItem('circuitDiagramWidth', circuitDiagramSection.style.width);
+                localStorage.setItem('codeEditorWidth', resizeLeft.style.width);
+                localStorage.setItem('circuitDiagramWidth', resizeTarget.style.width);
             }
         };
         
         document.addEventListener('mouseup', handleMouseUpHorizontal);
+        horizontalResizeHandle.setAttribute('data-resize-setup', 'true');
     }
+}
+
+function switchRightTab(tabName) {
+    const tabs = document.querySelectorAll('#rightSectionTabs .right-tab');
+    const panels = document.querySelectorAll('#rightSectionPanels .tab-panel');
+    if (!tabs.length || !panels.length) return;
+
+    tabs.forEach(tab => {
+        tab.classList.toggle('active', tab.dataset.tab === tabName);
+    });
+
+    panels.forEach(panel => {
+        const isActive = panel.dataset.tabPanel === tabName;
+        if (isActive) {
+            panel.classList.remove('hidden');
+            panel.style.height = '';
+            panel.style.width = '';
+        } else {
+            panel.classList.add('hidden');
+        }
+    });
+
+    localStorage.setItem('rightSectionTab', tabName);
+
+    if (tabName === 'code' || tabName === 'circuit') {
+        setTimeout(() => {
+            if (monacoEditor) monacoEditor.layout();
+            if (window.circuitBuilderMonacoEditor) window.circuitBuilderMonacoEditor.layout();
+        }, 10);
+    }
+
+    if (tabName === 'output' && histogramCanvas && resultsDisplay && !resultsDisplay.classList.contains('hidden')) {
+        setTimeout(() => {
+            const tableRows = document.querySelectorAll('#countsTableBody tr');
+            const counts = {};
+            tableRows.forEach(row => {
+                const state = row.querySelector('td:first-child')?.textContent;
+                const count = parseInt(row.querySelector('td:nth-child(3)')?.textContent);
+                if (state && count) {
+                    counts[state] = count;
+                }
+            });
+            if (Object.keys(counts).length > 0) {
+                drawHistogram(counts);
+            }
+        }, 10);
+    }
+}
+
+function setupRightSectionTabs() {
+    const tabBar = document.getElementById('rightSectionTabs');
+    if (!tabBar) return;
+
+    tabBar.addEventListener('click', (e) => {
+        const tab = e.target.closest('.right-tab');
+        if (!tab) return;
+        switchRightTab(tab.dataset.tab);
+    });
+
+    const availableTabs = [...tabBar.querySelectorAll('.right-tab')].map(t => t.dataset.tab);
+    const defaultTab = tabBar.querySelector('.right-tab.active')?.dataset.tab
+        || availableTabs[0]
+        || 'circuit';
+    const savedTab = localStorage.getItem('rightSectionTab');
+    switchRightTab(savedTab && availableTabs.includes(savedTab) ? savedTab : defaultTab);
 }
 
 function toggleSidebar() {
@@ -1045,7 +1073,7 @@ function loadSidebarState() {
 }
 
 async function saveFile() {
-    const code = monacoEditor ? monacoEditor.getValue().trim() : '';
+    const code = normalizeLineEndings(monacoEditor ? monacoEditor.getValue() : '').trim();
     
     // Get current language from selector
     const language = codeFormatSelect ? codeFormatSelect.value : 'openqasm3';
@@ -1136,7 +1164,7 @@ async function saveFile() {
 }
 
 async function runSimulation() {
-    const code = monacoEditor ? monacoEditor.getValue().trim() : '';
+    const code = normalizeLineEndings(monacoEditor ? monacoEditor.getValue() : '').trim();
     const shots = parseInt(shotsInput.value) || 1024;
     
     // Get current language from selector
@@ -1149,9 +1177,12 @@ async function runSimulation() {
     }
     
     // Update UI
-    runBtn.disabled = true;
-    runBtn.textContent = 'Running...';
+    if (runBtn) {
+        runBtn.disabled = true;
+        runBtn.textContent = 'Running...';
+    }
     statusIndicator.textContent = 'Compiling...';
+    switchRightTab('output');
     hideError();
     hideResults();
     
@@ -1178,8 +1209,10 @@ async function runSimulation() {
     } catch (error) {
         showError(`Network error: ${error.message}`);
     } finally {
-        runBtn.disabled = false;
-        runBtn.innerHTML = `<svg id="runBtnIcon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="${themeConfig[localStorage.getItem('theme') || 'dark'].btnIcon.stroke}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="6 3 20 12 6 21 6 3"></polygon></svg>`;
+        if (runBtn) {
+            runBtn.disabled = false;
+            runBtn.innerHTML = `<svg id="runBtnIcon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="${themeConfig[localStorage.getItem('theme') || 'dark'].btnIcon.stroke}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="6 3 20 12 6 21 6 3"></polygon></svg>`;
+        }
         statusIndicator.textContent = 'Ready';
     }
 }
@@ -1306,6 +1339,7 @@ function showError(message) {
     errorMessage.textContent = message;
     errorDisplay.classList.remove('hidden');
     emptyState.classList.add('hidden');
+    switchRightTab('output');
 }
 
 function hideError() {
@@ -1316,6 +1350,7 @@ function showResults() {
     resultsDisplay.classList.remove('hidden');
     emptyState.classList.add('hidden');
     errorDisplay.classList.add('hidden');
+    switchRightTab('output');
 }
 
 function hideResults() {
@@ -1326,7 +1361,7 @@ function hideResults() {
 async function updateCircuitDiagram() {
     if (!circuitDiagram || !circuitStatus) return;
     
-    const code = monacoEditor ? monacoEditor.getValue().trim() : '';
+    const code = normalizeLineEndings(monacoEditor ? monacoEditor.getValue() : '').trim();
     
     // Get current language from selector
     const language = codeFormatSelect ? codeFormatSelect.value : 'openqasm3';
@@ -2038,6 +2073,12 @@ function applyTheme(theme) {
     if (outputPanel) {
         outputPanel.className = outputPanel.className.replace(/bg-\[#1a1a1a\]|bg-gray-50/g, config.outputPanel.bg);
         outputPanel.className = outputPanel.className.replace(/border-gray-800|border-gray-300/g, config.outputPanel.border);
+    }
+
+    const rightSectionTabs = document.getElementById('rightSectionTabs');
+    if (rightSectionTabs) {
+        rightSectionTabs.className = rightSectionTabs.className.replace(/bg-\[#1a1a1a\]|bg-gray-50/g, config.outputPanel.bg);
+        rightSectionTabs.className = rightSectionTabs.className.replace(/border-gray-800|border-gray-300/g, config.outputPanel.border);
     }
     
     // Update vertical resize handle
