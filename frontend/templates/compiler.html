@@ -11,7 +11,7 @@
     <script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/vs/loader.js"></script>
 </head>
 
-<body class="bg-[#0f0f0f] text-gray-100 min-h-screen" data-theme="dark">
+<body class="bg-[#0f0f0f] text-gray-100 app-shell" data-theme="dark">
     <!-- Top Bar -->
     <div id="topBar" class="bg-[#1a1a1a] border-b border-gray-800 px-2 py-2">
         <div class="flex items-center justify-between">
@@ -53,10 +53,10 @@
         </div>
     </div>
 
-    <div class="grid grid-cols-[auto_1fr] h-[calc(100vh-53px)]">
+    <div id="appLayout">
         <!-- Sidebar -->
         <div id="sidebar"
-            class="w-64 bg-[#1a1a1a] border-r border-gray-800 p-2 transition-all duration-300 overflow-hidden">
+            class="w-64 bg-[#1a1a1a] border-r border-gray-800 p-2 transition-all duration-300 overflow-y-auto h-full min-h-0">
             <div class="flex items-center justify-between mb-4">
                 <h2 class="text-sm font-semibold text-gray-300">Menu</h2>
             </div>
@@ -89,12 +89,49 @@
                 </button> -->
             </nav>
 
+            <div id="quantaFnBrowser" class="mt-6 quanta-only hidden">
+                <div class="flex items-center justify-between mb-2">
+                    <h3 class="text-sm font-semibold text-gray-400">Functions</h3>
+                    <button id="functionsToggle" class="p-1 hover:bg-gray-800 rounded transition" title="Toggle Functions section">
+                        <svg id="functionsToggleIcon" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7"></path>
+                        </svg>
+                    </button>
+                </div>
+                <div id="functionsContent">
+                    <select id="quantaFnCategory" class="w-full mb-2 px-2 py-1 bg-gray-800 border border-gray-700 rounded text-xs text-gray-200"></select>
+                    <div id="quantaFnList" class="space-y-0.5"></div>
+                </div>
+            </div>
+
+            <div class="mt-6">
+                <div class="flex items-center justify-between mb-2">
+                    <h3 class="text-sm font-semibold text-gray-400">Examples</h3>
+                    <button id="examplesToggle" class="p-1 hover:bg-gray-800 rounded transition" title="Toggle Examples section">
+                        <svg id="examplesToggleIcon" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7"></path>
+                        </svg>
+                    </button>
+                </div>
+                <div id="examplesContent">
+                    <select id="exampleCategory" class="w-full mb-2 px-2 py-1 bg-gray-800 border border-gray-700 rounded text-xs text-gray-200">
+                        <option value="all">All</option>
+                        <option value="basics">Basics</option>
+                        <option value="algorithms">Algorithms</option>
+                        <option value="debug">Debug formats</option>
+                        <option value="arithmetic">Arithmetic</option>
+                        <option value="advanced">Advanced (OQ3)</option>
+                    </select>
+                    <div id="exampleGallery" class="space-y-1"></div>
+                </div>
+            </div>
+
             <div class="mt-8">
                 <div class="flex items-center justify-between mb-2">
                     <h3 class="text-sm font-semibold text-gray-400">Saved</h3>
                     <button id="savedToggle" class="p-1 hover:bg-gray-800 rounded transition" title="Toggle Saved section">
                         <svg id="savedToggleIcon" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7"></path>
                         </svg>
                     </button>
                 </div>
@@ -105,7 +142,7 @@
         </div>
 
         <!-- Main Content -->
-        <div class="flex flex-col min-w-0 h-full">
+        <div class="app-main flex flex-col min-w-0 h-full">
             <!-- Code Editor and Right Panel -->
             <div id="editorSection" class="flex gap-0 flex-1 min-h-0">
                 <!-- Code Editor Section -->
@@ -119,14 +156,10 @@
                             </select>
                         </div>
                         <div class="flex items-center space-x-4">
+                            <span id="quantaVersionBadge" class="hidden text-xs text-gray-500 font-mono" title="Installed quanta-lang version"></span>
                             <label id="keepStructureLabel" class="hidden flex items-center space-x-2" title="Preserve gate/def structure in generated QASM">
                                 <input type="checkbox" id="keepStructureCheckbox" class="rounded bg-gray-800 border-gray-700">
                                 <span class="text-sm text-gray-400">Structured QASM</span>
-                            </label>
-                            <label class="flex items-center space-x-2">
-                                <span class="text-sm text-gray-400">Shots:</span>
-                                <input type="number" id="shotsInput" value="1024" min="1" max="100000"
-                                    class="w-24 px-3 py-0 bg-gray-800 border border-gray-700 rounded text-sm">
                             </label>
                             <button id="saveBtn"
                                 class="px-3 py-0 bg-gray-800 hover:bg-gray-700 rounded-lg font-semibold transition text-gray-100">
@@ -186,7 +219,7 @@
                             </div>
 
                             <div id="circuitDiagramContainer"
-                                class="flex-1 border border-gray-800 rounded-lg overflow-auto bg-black p-4 mx-0 mb-4">
+                                class="flex-1 border border-gray-800 overflow-auto bg-black mx-0">
                                 <div id="circuitDiagram" class="flex items-center justify-center min-h-full">
                                     <div class="text-center text-gray-500">
                                         <div id="circuitEmptyIcon" class="text-4xl mb-2 flex items-center justify-center">
@@ -222,6 +255,7 @@
                                     <div id="qasmStatus" class="text-sm text-gray-400">Ready</div>
                                 </div>
                             </div>
+                            <div id="compileStatsPanel" class="hidden mx-4 mb-2 shrink-0 text-xs font-mono text-gray-500 flex flex-wrap gap-3 px-1"></div>
                             <div id="qasmSingleView" class="flex-1 min-h-0 border border-gray-800 rounded-lg overflow-auto bg-black p-4 mx-4 mb-4">
                                 <pre id="generatedQasm" class="font-mono text-xs text-green-400 whitespace-pre-wrap break-words m-0">// Generated QASM will appear here when editing Quanta code</pre>
                             </div>
@@ -243,12 +277,18 @@
 
                         <!-- Debug Output Section (Quanta only) -->
                         <div id="debugSection" class="tab-panel hidden flex flex-col h-full min-h-0 bg-[#1a1a1a] p-4 overflow-hidden" data-tab-panel="debug">
-                            <div class="flex items-center justify-between mb-4 shrink-0">
-                                <button id="debugBtn"
-                                    class="px-3 py-0 bg-gray-800 hover:bg-gray-700 rounded-lg font-semibold transition text-gray-100"
-                                    title="Run statevector debug (Print output)">
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"></path></svg>
-                                </button>
+                            <div class="flex items-center justify-between mb-4 shrink-0 gap-2 flex-wrap">
+                                <div class="flex items-center gap-2">
+                                    <button id="debugBtn"
+                                        class="px-3 py-0 bg-gray-800 hover:bg-gray-700 rounded-lg font-semibold transition text-gray-100"
+                                        title="Run statevector debug (Print output)">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"></path></svg>
+                                    </button>
+                                    <label class="flex items-center space-x-2 text-sm text-gray-400" title="Re-run debug automatically while typing">
+                                        <input type="checkbox" id="liveDebugCheckbox" class="rounded bg-gray-800 border-gray-700">
+                                        <span>Live debug</span>
+                                    </label>
+                                </div>
                                 <div id="debugStatus" class="text-sm text-gray-400">Simulator-only debug</div>
                             </div>
                             <div class="mb-2 shrink-0">
@@ -261,6 +301,9 @@
                                         <div><button type="button" class="debug-snippet hover:text-green-400 text-left" data-snippet='Print(q, ":entropy")'>Print(q, ":entropy")</button> — von Neumann entropy</div>
                                         <div><button type="button" class="debug-snippet hover:text-green-400 text-left" data-snippet='Print(q, ":circuit")'>Print(q, ":circuit")</button> — gate trace</div>
                                         <div><button type="button" class="debug-snippet hover:text-green-400 text-left" data-snippet='Print(f"{q:summary}")'>Print(f"{q:summary}")</button> — f-string summary</div>
+                                        <div><button type="button" class="debug-snippet hover:text-green-400 text-left" data-snippet='Print(f"{q:density}")'>Print(f"{q:density}")</button> — density matrix</div>
+                                        <div><button type="button" class="debug-snippet hover:text-green-400 text-left" data-snippet='Print(f"{q:amplitudes}")'>Print(f"{q:amplitudes}")</button> — amplitudes</div>
+                                        <div><button type="button" class="debug-snippet hover:text-green-400 text-left" data-snippet='Print(Fidelity(q, |0⟩))'>Print(Fidelity(q, |0⟩))</button> — fidelity vs target</div>
                                         <div class="pt-1 text-gray-600">Use double-quoted f-strings only. Ctrl+Shift+Enter runs debug.</div>
                                     </div>
                                 </details>
@@ -277,11 +320,18 @@
                         <!-- Output Section -->
                         <div id="outputSection" class="tab-panel hidden flex flex-col h-full bg-[#1a1a1a] p-4 theme-output overflow-auto" data-tab-panel="output">
                             <div class="flex items-center justify-between mb-4 shrink-0">
-                                <button id="runBtn"
-                                    class="px-3 py-0 bg-gray-800 hover:bg-gray-700 rounded-lg font-semibold transition text-gray-100"
-                                    title="Run simulation">
-                                    <svg id="runBtnIcon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="6 3 20 12 6 21 6 3"></polygon></svg>
-                                </button>
+                                <div class="flex items-center space-x-4">
+                                    <button id="runBtn"
+                                        class="px-3 py-0 bg-gray-800 hover:bg-gray-700 rounded-lg font-semibold transition text-gray-100"
+                                        title="Run simulation">
+                                        <svg id="runBtnIcon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="6 3 20 12 6 21 6 3"></polygon></svg>
+                                    </button>
+                                    <label class="flex items-center space-x-2">
+                                        <span class="text-sm text-gray-400">Shots:</span>
+                                        <input type="number" id="shotsInput" value="1024" min="1" max="100000"
+                                            class="w-24 px-3 py-0 bg-gray-800 border border-gray-700 rounded text-sm">
+                                    </label>
+                                </div>
                                 <div id="statusIndicator" class="text-sm text-gray-400">
                                     Ready
                                 </div>
@@ -342,7 +392,10 @@
 
     <script src="{{ url_for('static', filename='js/quanta-intellisense.js') }}"></script>
     <script src="{{ url_for('static', filename='js/quanta-doc-template.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/quanta-snippets.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/quanta-symbol-convert.js') }}"></script>
     <script src="{{ url_for('static', filename='js/bloch-sphere.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/debug-visualizers.js') }}"></script>
     <script src="{{ url_for('static', filename='js/app.js') }}"></script>
 </body>
 

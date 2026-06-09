@@ -133,6 +133,38 @@ class QuantaHelperTests(unittest.TestCase):
         self.assertIn("Print", names)
         self.assertIn("QAdd", names)
 
+    def test_debug_prints_structured(self):
+        from compiler.quanta_helpers import get_debug_prints_structured
+
+        code = read_sample("superposition.qta")
+        result = get_debug_prints_structured(code)
+        self.assertIn("output", result)
+        self.assertIn("blocks", result)
+        self.assertIsInstance(result["blocks"], list)
+
+    def test_get_user_function_docs_list(self):
+        from compiler.quanta_helpers import get_user_function_docs_list
+
+        source = '/// - Bell gate\n/// qbit a\n/// qbit b\ngate Bell(a, b) {\n    H(a)\n    CNot(a, b)\n}\n'
+        docs = get_user_function_docs_list(source)
+        self.assertTrue(any(d["name"] == "Bell" for d in docs))
+
+    def test_get_compile_stats(self):
+        from compiler.quanta_helpers import get_compile_stats
+
+        code = read_sample("bell.qta")
+        stats = get_compile_stats(code)
+        self.assertIn("flat", stats)
+        self.assertIn("structured", stats)
+        self.assertIn("gate_ops", stats["flat"])
+
+    def test_get_quanta_version_info(self):
+        from compiler.quanta_helpers import get_quanta_version_info
+
+        info = get_quanta_version_info()
+        self.assertIn("installed", info)
+        self.assertEqual(info["required_min"], "0.1.16")
+
 
 class HttpApiTests(unittest.TestCase):
     @classmethod
@@ -242,6 +274,42 @@ class HttpApiTests(unittest.TestCase):
         self.assertTrue(data.get("success"))
         self.assertIn("OPENQASM 3", data.get("qasm_flat", ""))
         self.assertIn("OPENQASM 3", data.get("qasm_structured", ""))
+
+    def test_debug_prints_structured_endpoint(self):
+        code = read_sample("superposition.qta")
+        status, data = http_json("POST", "/debug-prints", {"code": code})
+        self.assertEqual(status, 200)
+        self.assertTrue(data.get("success"))
+        self.assertIn("blocks", data)
+        self.assertIsInstance(data.get("blocks"), list)
+
+    def test_list_user_functions_endpoint(self):
+        source = '/// - add\n/// var a\n/// var b\nfunc int add(a, b) { return a + b; }\n'
+        status, data = http_json("POST", "/list-user-functions", {"source": source})
+        self.assertEqual(status, 200)
+        self.assertTrue(data.get("success"))
+        names = [f["name"] for f in data.get("functions", [])]
+        self.assertIn("add", names)
+
+    def test_quanta_version_endpoint(self):
+        status, data = http_json("GET", "/quanta-version", None)
+        self.assertEqual(status, 200)
+        self.assertTrue(data.get("success"))
+        self.assertIn("installed", data)
+
+    def test_compile_stats_endpoint(self):
+        code = read_sample("bell.qta")
+        status, data = http_json("POST", "/compile-stats", {"code": code})
+        self.assertEqual(status, 200)
+        self.assertTrue(data.get("success"))
+        self.assertIn("flat", data.get("stats", {}))
+
+    def test_compiler_page_has_new_scripts(self):
+        with urllib.request.urlopen(f"{BASE_URL}/compiler", timeout=10) as response:
+            html = response.read().decode("utf-8")
+        self.assertIn("debug-visualizers.js", html)
+        self.assertIn("quanta-snippets.js", html)
+        self.assertIn("liveDebugCheckbox", html)
 
     def test_save_file_normalizes_windows_line_endings(self):
         code = "line1\r\nline2\r\n"

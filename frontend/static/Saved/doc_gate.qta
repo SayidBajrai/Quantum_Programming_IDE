@@ -1,47 +1,23 @@
-/// - Bellgate gate
-/// qbit a - first parameter
-/// qbit b - second parameter
-gate Bellgate(a, b) {
-    H(a)
-    CNot(a, b)
+// /// documentation showcase — hover params, autocomplete, function browser
+/// - Bellgate prepares |00⟩+|11⟩
+/// qbit control - control qubit
+/// qbit target - target qubit
+gate Bellgate(control, target) {
+    H(control)
+    CNot(control, target)
+}
+
+/// - add two integers
+/// int a - first operand
+/// int b - second operand
+/// return: int - sum
+func int add(int a, int b) {
+    return a + b;
 }
 
 qbit[2] q
-Bellgate(q[0], q[1])  
-Print(q)
+Bellgate(q[0], q[1])
+Print(f"Entangled: {q}")
 
-
-
-/// - add function
-/// int a - first variable
-/// int b - second variable
-/// return: int - result of add
-func int add(int a,int b) {
-    return a + b;
-}
-
-/// - add function
-/// float a - first variable
-/// float b - second variable
-/// return: float - result of add
-func float add(float a, float b) {
-    return a + b
-}
- 
-/// - add function
-/// var a - first variable
-/// var b - second variable
-/// return: var - result of add
-func var add(a, b) {
-    return a + b;
-}
- 
-
-float a = 1.1
-float b = 4.2
-float c = add(a, b)
-Print(c)
-int a1 = 1
-int b1 = 4
-int c1 = add(a1, b1)
-Print(c1)
+int sum = add(3, 5)
+Print(f"classical add: {sum}")

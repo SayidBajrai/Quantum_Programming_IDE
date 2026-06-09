@@ -1,0 +1,22 @@
+// Structured QASM showcase — enable "Structured QASM" + Compare modes
+/// - Prep prepares |+⟩ on one qubit
+/// qbit target - qubit to prepare
+gate Prep(target) {
+    H(target)
+}
+
+/// - EntanglePair creates a Bell pair
+/// qbit a - first qubit
+/// qbit b - second qubit
+gate EntanglePair(a, b) {
+    H(a)
+    CNot(a, b)
+}
+
+qbit[2] q
+bit[2] c
+
+Prep(q[0])
+EntanglePair(q[0], q[1])
+Measure(q, c)
+Print(c)

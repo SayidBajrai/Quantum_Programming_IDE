@@ -1,7 +1,10 @@
+// GHZ state — 3-qubit entanglement (|000⟩ + |111⟩)/√2
 OPENQASM 3;
 include "stdgates.inc";
+
 qubit[3] q;
 bit[3] c;
+
 h q[0];
 cx q[0], q[1];
 cx q[0], q[2];

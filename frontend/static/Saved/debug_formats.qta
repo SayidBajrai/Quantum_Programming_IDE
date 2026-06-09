@@ -1,9 +1,14 @@
-// Debug print format examples (use Debug Output tab)
-qbit q 
+// Debug Output showcase — hover linked blocks, click to pin visualizers
+// Use Debug tab + Ctrl+Shift+Enter (or enable Live debug)
+qbit q
+
 H(q)
 
-Print(q)
-Print(f"\n\n\n{q:sum}")
-Print(f"\n\n\n{q:prob}")
-Print(f"\n\n\n{q:bloch}")
-Print(f"\n\n\n{q:entropy}")
+Print(f"Symbolic: {q}")
+Print(f"Summary:\n{q:summary}")
+Print(f"Probabilities:\n{q:prob}")
+Print(f"Bloch:\n{q:bloch}")
+Print(f"Entropy: {q:entropy}")
+Print(f"Amplitudes:\n{q:amplitudes}")
+Print(f"Density:\n{q:density}")
+Print(f"Circuit:\n{q:circuit}")

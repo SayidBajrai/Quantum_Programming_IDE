@@ -1,0 +1,9 @@
+// Gate modifiers — ctrl @ and inv @ (hover ctrl/inv for docs)
+qbit[2] q
+
+H(q[0])
+ctrl @ CNot(q[0], q[1])
+Print(f"After ctrl CNot:\n{q:prob}")
+
+inv @ H(q[0])
+Print(f"After inv H:\n{q:prob}")

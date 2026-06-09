@@ -1,7 +1,8 @@
-// GHZ state on 3 qubits
+// GHZ state using built-in high-level gate
 qbit[3] q
 bit[3] c
 
-GHZ(q)
+GHZ(q[0], q[1], q[2])
+Print(f"{q:summary}")
 Measure(q, c)
 Print(c)

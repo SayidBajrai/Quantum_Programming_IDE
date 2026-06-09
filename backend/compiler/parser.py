@@ -20,7 +20,7 @@ except ImportError:
     QUANTA_PARSER_AVAILABLE = False
     QuantaError = None  # type: ignore
 
-def parse_qasm(code: str, language: str = 'openqasm3'):
+def parse_qasm(code: str, language: str = 'openqasm3', keep_structure: bool = False):
     """
     Parse quantum code into a Qiskit QuantumCircuit.
     
@@ -40,7 +40,7 @@ def parse_qasm(code: str, language: str = 'openqasm3'):
         This is a graceful degradation strategy.
     """
     if language == 'quanta':
-        return parse_quanta(code)
+        return parse_quanta(code, keep_structure=keep_structure)
     else:
         return parse_openqasm3(code)
 
@@ -69,7 +69,7 @@ def parse_openqasm3(code: str):
         # Raise CompilationError for parse failures so users get clear error messages
         raise CompilationError(f"Parse error: {str(e)}")
 
-def parse_quanta(code: str):
+def parse_quanta(code: str, keep_structure: bool = False):
     """
     Parse Quanta language code into a Qiskit QuantumCircuit.
     
@@ -104,7 +104,7 @@ def parse_quanta(code: str):
         
         # Step 2: Convert Quanta code to OpenQASM 3
         # The quanta.compile() function should accept a string and return OpenQASM 3 code
-        qasm_code = quanta.compile(normalized_code)
+        qasm_code = quanta.compile(normalized_code, keep_structure=keep_structure)
         
         # Step 2: Parse the resulting OpenQASM 3 code to get QuantumCircuit
         circuit = parse_openqasm3(qasm_code)

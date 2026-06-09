@@ -1,22 +1,72 @@
 /* Custom styles for OpenQASM 3 Compiler & Simulator */
 
-/* Scrollbar styling for dark theme */
+html {
+    height: 100%;
+}
+
+/* Full-height app shell: top bar + sidebar/main fill remaining viewport */
+body.app-shell {
+    display: flex;
+    flex-direction: column;
+    max-height: 100vh;
+    height: 100dvh;
+    overflow: hidden;
+    min-height: 0;
+}
+
+#topBar {
+    flex-shrink: 0;
+}
+
+#appLayout {
+    flex: 1 1 auto;
+    min-height: 0;
+    height: calc(100vh - var(--top-bar-height, 0px));
+    height: calc(100dvh - var(--top-bar-height, 0px));
+    max-height: calc(100vh - var(--top-bar-height, 0px));
+    max-height: calc(100dvh - var(--top-bar-height, 0px));
+    overflow: hidden;
+    display: grid;
+    grid-template-columns: auto 1fr;
+}
+
+#appLayout > * {
+    min-height: 0;
+    max-height: 100%;
+    height: 100%;
+    overflow: hidden;
+}
+
+/* Scrollbar styling */
 ::-webkit-scrollbar {
     width: 8px;
     height: 8px;
 }
 
-::-webkit-scrollbar-track {
+[data-theme="dark"] ::-webkit-scrollbar-track {
     background: #1a1a1a;
 }
 
-::-webkit-scrollbar-thumb {
+[data-theme="light"] ::-webkit-scrollbar-track {
+    background: #f3f4f6;
+}
+
+[data-theme="dark"] ::-webkit-scrollbar-thumb {
     background: #374151;
     border-radius: 4px;
 }
 
-::-webkit-scrollbar-thumb:hover {
+[data-theme="light"] ::-webkit-scrollbar-thumb {
+    background: #d1d5db;
+    border-radius: 4px;
+}
+
+[data-theme="dark"] ::-webkit-scrollbar-thumb:hover {
     background: #4b5563;
+}
+
+[data-theme="light"] ::-webkit-scrollbar-thumb:hover {
+    background: #9ca3af;
 }
 
 /* Code editor styling */
@@ -79,6 +129,7 @@ button:active {
     width: 0;
     padding: 0;
     border-right: none;
+    overflow: hidden;
 }
 
 #sidebar.collapsed * {
@@ -88,6 +139,25 @@ button:active {
 
 #sidebar {
     transition: width 0.3s ease, padding 0.3s ease;
+    overflow-x: hidden;
+    overflow-y: auto;
+}
+
+#appLayout > .app-main {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+#appLayout .app-main > *,
+#editorSection,
+#codeEditorSection,
+#rightSection {
+    min-height: 0;
+}
+
+#editorSection {
+    overflow: hidden;
 }
 
 #sidebar * {
@@ -96,15 +166,16 @@ button:active {
 
 /* Grid layout adjustments */
 @media (max-width: 768px) {
-    .grid {
+    #appLayout {
         grid-template-columns: 1fr;
     }
     
     #sidebar {
         position: fixed;
         left: 0;
-        top: 73px;
-        height: calc(100vh - 73px);
+        top: var(--top-bar-height, 53px);
+        height: calc(100vh - var(--top-bar-height, 53px));
+        height: calc(100dvh - var(--top-bar-height, 53px));
         z-index: 50;
         transform: translateX(-100%);
         transition: transform 0.3s ease;
@@ -180,8 +251,12 @@ body.light-mode .right-tab.active {
     -webkit-user-select: none;
 }
 
-#resizeHandle:active {
+[data-theme="dark"] #resizeHandle:active {
     background-color: #374151;
+}
+
+[data-theme="light"] #resizeHandle:active {
+    background-color: #d1d5db;
 }
 
 /* Prevent text selection during resize */
@@ -192,4 +267,36 @@ body.resizing {
 body.resizing.cursor-col-resize,
 body.resizing.cursor-col-resize * {
     cursor: col-resize !important;
+}
+
+/* Home page */
+#homeMain {
+    overflow-y: auto;
+    overflow-x: hidden;
+}
+
+.home-hero-glow {
+    background: radial-gradient(ellipse 80% 60% at 50% -20%, rgba(16, 185, 129, 0.15), transparent);
+}
+
+.home-tour-card {
+    transition: border-color 0.2s ease, transform 0.15s ease;
+}
+
+.home-tour-card:hover {
+    border-color: rgba(16, 185, 129, 0.45);
+    transform: translateY(-1px);
+}
+
+.home-path-card {
+    border-left: 3px solid #10b981;
+}
+
+body.light-mode .home-hero-glow {
+    background: radial-gradient(ellipse 80% 60% at 50% -20%, rgba(5, 150, 105, 0.12), transparent);
+}
+
+body.light-mode .nav-item.active {
+    background-color: #e5e7eb;
+    color: #111827;
 }

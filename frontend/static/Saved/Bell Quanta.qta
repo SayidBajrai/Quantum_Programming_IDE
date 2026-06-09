@@ -1,18 +1,18 @@
-// Bell state example
+// Quanta Bell state — custom gate, f-strings, simulation
 qbit[2] q
 bit[2] c
 
+/// - Bellgate prepares an entangled pair
+/// qbit a - control qubit
+/// qbit b - target qubit
 gate Bellgate(a, b) {
     H(a)
     CNot(a, b)
 }
 
-// before Bell gate
-Print(f"qubits before Bell gate: {q}")
-
-// after Bell gate
+Print(f"Before Bell: {q}")
 Bellgate(q[0], q[1])
-Print(f"qubits after Bell gate: {q}") 
+Print(f"After Bell: {q}")
 
-// measure
 Measure(q, c)
+Print(c)

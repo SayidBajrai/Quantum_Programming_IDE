@@ -520,44 +520,19 @@
         return `${t0} + ${t1}`;
     }
 
-    window.setupBlochDebugVisualization = function setupBlochDebugVisualization(debugOutputEl) {
-        if (!debugOutputEl) return;
-
+    window.setupBlochHandlers = function setupBlochHandlers() {
         const hoverPopover = createHoverPopover();
         const pinnedPanels = [];
         const pinnedByBlockIndex = new Map();
         let pinCounter = 0;
-        let hintEl = null;
 
         function hideHover() {
             hoverPopover.el.classList.add('hidden');
         }
 
-        function blockFromDataset(el) {
-            return {
-                x: parseFloat(el.dataset.x),
-                y: parseFloat(el.dataset.y),
-                z: parseFloat(el.dataset.z),
-                theta: parseFloat(el.dataset.theta),
-                phi: parseFloat(el.dataset.phi),
-                index: el.dataset.blochIndex,
-                title: el.dataset.title || 'BLOCH SPHERE'
-            };
-        }
-
         function bringPanelToFront(panel) {
             const maxZ = pinnedPanels.reduce((z, p) => Math.max(z, parseInt(p.el.style.zIndex, 10) || 50), 50);
             panel.el.style.zIndex = String(maxZ + 1);
-        }
-
-        function showHover(block, anchorRect) {
-            applyBlockToView(hoverPopover.view, block);
-            hoverPopover.el.classList.remove('hidden');
-            clampPopoverPosition(
-                hoverPopover.el,
-                anchorRect.right + 10,
-                anchorRect.top
-            );
         }
 
         function populatePinnedPanel(panel, block) {
@@ -581,111 +556,36 @@
         function removePinnedPanel(panel) {
             const idx = pinnedPanels.indexOf(panel);
             if (idx >= 0) pinnedPanels.splice(idx, 1);
-            if (panel.blockIndex != null) {
-                pinnedByBlockIndex.delete(panel.blockIndex);
-            }
+            if (panel.blockIndex != null) pinnedByBlockIndex.delete(panel.blockIndex);
             panel.el.remove();
         }
 
-        function pinBlock(block) {
-            hideHover();
-            const key = String(block.index);
-            if (pinnedByBlockIndex.has(key)) {
-                const existing = pinnedByBlockIndex.get(key);
-                bringPanelToFront(existing);
-                return;
-            }
-            const panel = createPinnedPanel(pinCounter++, removePinnedPanel);
-            panel.blockIndex = key;
-            pinnedPanels.push(panel);
-            pinnedByBlockIndex.set(key, panel);
-            populatePinnedPanel(panel, block);
-            panel.el.style.zIndex = String(50 + pinnedPanels.length);
-        }
-
-        function closeAllPinnedPanels() {
-            while (pinnedPanels.length) {
-                removePinnedPanel(pinnedPanels[pinnedPanels.length - 1]);
-            }
-            pinnedByBlockIndex.clear();
-            pinCounter = 0;
-        }
-
-        debugOutputEl.addEventListener('mouseover', (e) => {
-            const block = e.target.closest('.bloch-block');
-            if (!block) return;
-            showHover(blockFromDataset(block), block.getBoundingClientRect());
-        });
-
-        debugOutputEl.addEventListener('mouseout', (e) => {
-            const block = e.target.closest('.bloch-block');
-            if (!block) return;
-            const related = e.relatedTarget;
-            if (related && block.contains(related)) return;
-            hideHover();
-        });
-
-        debugOutputEl.addEventListener('click', (e) => {
-            const block = e.target.closest('.bloch-block');
-            if (!block) return;
-            e.preventDefault();
-            e.stopPropagation();
-            pinBlock(blockFromDataset(block));
-        });
-
-        const scrollParent = debugOutputEl.closest('.overflow-auto') || debugOutputEl;
-        scrollParent.addEventListener('scroll', hideHover, { passive: true });
-
-        window.updateDebugOutputWithBloch = function updateDebugOutputWithBloch(text) {
-            closeAllPinnedPanels();
-            hideHover();
-
-            const blocks = parseBlochBlocks(text);
-            debugOutputEl.textContent = '';
-
-            if (blocks.length === 0) {
-                debugOutputEl.textContent = text;
-                if (hintEl) hintEl.classList.add('hidden');
-                return;
-            }
-
-            let lastIndex = 0;
-            blocks.forEach((block, index) => {
-                if (block.start > lastIndex) {
-                    debugOutputEl.appendChild(
-                        document.createTextNode(text.slice(lastIndex, block.start))
-                    );
+        return {
+            showHover(data, anchorRect) {
+                applyBlockToView(hoverPopover.view, data);
+                hoverPopover.el.classList.remove('hidden');
+                clampPopoverPosition(hoverPopover.el, anchorRect.right + 10, anchorRect.top);
+            },
+            hideHover,
+            pinBlock(block) {
+                hideHover();
+                const key = String(block.index);
+                if (pinnedByBlockIndex.has(key)) {
+                    bringPanelToFront(pinnedByBlockIndex.get(key));
+                    return;
                 }
-                const span = document.createElement('span');
-                span.className = 'bloch-block underline decoration-emerald-700/50 decoration-dotted underline-offset-2 cursor-pointer hover:bg-emerald-950/50 rounded-sm';
-                span.dataset.blochIndex = String(index);
-                span.dataset.x = String(block.x);
-                span.dataset.y = String(block.y);
-                span.dataset.z = String(block.z);
-                span.dataset.theta = String(block.theta);
-                span.dataset.phi = String(block.phi);
-                span.dataset.title = block.title;
-                span.title = `${block.title} — hover to preview, click to pin (× to close)`;
-                span.textContent = text.slice(block.start, block.end);
-                debugOutputEl.appendChild(span);
-                lastIndex = block.end;
-            });
-
-            if (lastIndex < text.length) {
-                debugOutputEl.appendChild(document.createTextNode(text.slice(lastIndex)));
-            }
-
-            if (!hintEl) {
-                hintEl = document.createElement('p');
-                hintEl.id = 'blochHint';
-                hintEl.className = 'text-[11px] text-emerald-700/80 mt-1 shrink-0 hidden';
-                debugOutputEl.parentElement.parentElement.insertBefore(
-                    hintEl,
-                    debugOutputEl.parentElement
-                );
-            }
-            hintEl.textContent = `${blocks.length} Bloch link${blocks.length > 1 ? 's' : ''} — hover to preview, click to pin one window per link`;
-            hintEl.classList.remove('hidden');
+                const panel = createPinnedPanel(pinCounter++, removePinnedPanel);
+                panel.blockIndex = key;
+                pinnedPanels.push(panel);
+                pinnedByBlockIndex.set(key, panel);
+                populatePinnedPanel(panel, block);
+                panel.el.style.zIndex = String(50 + pinnedPanels.length);
+            },
+            closeAll() {
+                while (pinnedPanels.length) removePinnedPanel(pinnedPanels[pinnedPanels.length - 1]);
+                pinnedByBlockIndex.clear();
+                pinCounter = 0;
+            },
         };
     };
 })();

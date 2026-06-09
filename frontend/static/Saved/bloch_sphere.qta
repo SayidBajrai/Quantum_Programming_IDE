@@ -1,0 +1,8 @@
+// Bloch sphere demo — hover preview, click to pin interactive sphere
+qbit q
+
+H(q)
+Print(f"state=|+⟩ bloch={q:bloch}")
+
+RZ(pi / 4, q)
+Print(f"state=rotated bloch={q:bloch}")

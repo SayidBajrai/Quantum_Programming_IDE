@@ -1,6 +1,6 @@
 # Quantum Programming IDE Compiler & Simulator
 
-A comprehensive web-based platform for compiling, simulating, and visualizing quantum circuits written in OpenQASM 3. This application provides researchers and academics with an intuitive interface for quantum algorithm development, circuit analysis, and educational purposes.
+A comprehensive web-based platform for compiling, simulating, and visualizing quantum circuits written in **OpenQASM 3** and **Quanta**. Visit `/home` for the interactive feature tour with one-click example links.
 
 ## Overview
 
@@ -334,7 +334,17 @@ Measure(q, c)
 Print(c)
 ```
 
-(See also saved examples: `grover.qta`, `qft.qta`, `debug_formats.qta`.)
+Saved examples in `frontend/static/Saved/` — open from the **Home → Feature Tour** or the compiler **Examples** sidebar (filters by OpenQASM / Quanta language):
+
+| Category | OpenQASM 3 (`.qasm`) | Quanta (`.qta`) |
+|----------|------------------------|-----------------|
+| Start | — | `START_HERE.qta` (feature map) |
+| Basics | `bell`, `superposition`, `ghz`, `phase_demo` | `Bell Quanta`, `superposition`, `ghz`, `doc_gate`, `ctrl_inv_demo`, `structured_qasm` |
+| Algorithms | `teleportation` | `grover`, `qft` |
+| Debug | — | `debug_formats`, `bloch_sphere`, `fidelity_demo` |
+| Advanced | `openqasm3_features` (params, loops) | `qint_arithmetic` |
+
+**Home page** (`/home`) includes an interactive tour — each row links to the compiler with the example pre-loaded. Use **Start Feature Tour** for a guided entry point.
 
 ### File Management
 
@@ -732,7 +742,7 @@ Contributors are encouraged to follow best practices for code quality, documenta
 - **Qiskit** (0.45+): Quantum circuit construction and simulation framework
 - **Qiskit Aer**: High-performance quantum circuit simulator
 - **qiskit-qasm3-import** (0.6.0+): OpenQASM 3 parser with AST generation
-- **quanta-lang** (0.1.5+): Quanta language compiler that converts Quanta code to OpenQASM 3
+- **quanta-lang** (0.1.16+): Quanta language compiler that converts Quanta code to OpenQASM 3
 - **matplotlib**: Circuit diagram visualization and SVG generation
 - **Pillow** (10.0.0+): High-resolution PNG image generation for circuit diagram downloads
 - **numpy**: Numerical computations for quantum state manipulation
@@ -832,6 +842,14 @@ For questions, technical issues, collaboration inquiries, or research partnershi
     [https://arxiv.org/abs/2304.15000](https://arxiv.org/abs/2304.15000)
 
 ## Version History
+
+- **v1.1.6** (2026-06-07): Full Quanta 0.1.16 IDE integration batch
+
+  - Structured debug API with linked visualizers for `:prob`, `:summary`, `:circuit`, `:density`, `:amplitudes`, `:sym`, and fidelity
+  - Density matrix heatmap previews; live debounced debug toggle; compile stats panel (flat vs structured QASM)
+  - Function browser sidebar with category filter; user `///` docs in autocomplete; f-string `:format` snippets
+  - Example gallery by category; circuit builder Bell/GHZ/QFT templates; structured QASM circuit diagrams
+  - New endpoints: `/list-user-functions`, `/quanta-version`, `/compile-stats`; expanded API test coverage
 
 - **v1.1.5** (2026-06-07): Quanta debug Bloch spheres, `///` doc tooling, and IntelliSense improvements
 
@@ -936,5 +954,5 @@ For questions, technical issues, collaboration inquiries, or research partnershi
 
 ---
 
-**Version**: 1.1.5
+**Version**: 1.1.6
 **Last Updated**: 2026-06-07

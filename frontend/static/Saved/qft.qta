@@ -3,3 +3,4 @@ qbit[3] q
 
 QFT(q[0], q[1], q[2])
 Print(f"{q:summary}")
+Print(f"{q:prob}")

@@ -1,3 +1,8 @@
+// Quanta superposition — symbolic Print + simulation
 qbit q
+bit c
+
 H(q)
 Print(q)
+Measure(q, c)
+Print(c)

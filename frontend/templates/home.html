@@ -9,11 +9,15 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
 </head>
 
-<body class="bg-[#0f0f0f] text-gray-100 min-h-screen" data-theme="dark">
-    <!-- Top Bar -->
+<body class="bg-[#0f0f0f] text-gray-100 app-shell" data-theme="dark">
     <div id="topBar" class="bg-[#1a1a1a] border-b border-gray-800 px-2 py-2">
         <div class="flex items-center justify-between">
             <div class="flex items-center space-x-4">
+                <button id="sidebarToggleDesktop" class="hidden md:block p-0 hover:bg-gray-800 rounded-lg transition" title="Toggle sidebar">
+                    <svg id="sidebarToggleDesktopIcon" class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 19l-7-7 7-7m8 14l-7-7 7-7"></path>
+                    </svg>
+                </button>
                 <div id="logoIcon" class="text-2xl font-bold text-green-400">
                     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <circle cx="12" cy="12" r="1"></circle>
@@ -22,10 +26,15 @@
                     </svg>
                 </div>
                 <h1 class="text-xl font-semibold">Quantum Programming IDE</h1>
+                <span class="text-xs text-gray-500 font-mono hidden lg:inline">v1.1.6 · quanta-lang 0.1.16+</span>
             </div>
-            <div class="flex items-center space-x-4">
-                <button id="themeToggle"
-                    class="px-2 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg transition flex items-center space-x-2">
+            <div class="flex items-center space-x-2">
+                <button id="sidebarToggleMobile" class="md:hidden p-2 hover:bg-gray-800 rounded-lg transition" title="Menu">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
+                    </svg>
+                </button>
+                <button id="themeToggle" class="px-2 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg transition">
                     <span id="themeIcon">
                         <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                             <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"></path>
@@ -36,148 +45,200 @@
         </div>
     </div>
 
-    <!-- Main Content -->
-    <div class="container mx-auto px-4 py-8 max-w-6xl">
-        <!-- Hero Section -->
-        <div class="text-center mb-12">
-            <h2 class="text-4xl font-bold mb-4 text-green-400">Welcome to Quantum Programming IDE</h2>
-            <p class="text-xl text-gray-400 mb-8">A powerful integrated development environment for OpenQASM 3</p>
-            
-            <div class="flex justify-center gap-4">
-                <a href="/compiler" class="px-6 py-3 bg-green-600 hover:bg-green-700 rounded-lg font-semibold transition text-white">
-                    Open Compiler
+    <div id="appLayout">
+        <div id="sidebar" class="w-64 bg-[#1a1a1a] border-r border-gray-800 p-2 transition-all duration-300 overflow-y-auto h-full min-h-0">
+            <h2 class="text-sm font-semibold text-gray-300 mb-4 px-2">Menu</h2>
+            <nav class="space-y-2 mb-6">
+                <a href="/home" class="nav-item active w-full text-left px-4 py-2 rounded-lg bg-gray-800 flex items-center space-x-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+                        <polyline points="9 22 9 12 15 12 15 22"></polyline>
+                    </svg>
+                    <span>Home</span>
                 </a>
-                <a href="/circuit" class="px-6 py-3 bg-green-600 hover:bg-green-700 rounded-lg font-semibold transition text-white">
-                    Circuit Builder
+                <a href="/compiler" class="nav-item w-full text-left px-4 py-2 rounded-lg hover:bg-gray-800 transition flex items-center space-x-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="m18 16 4-4-4-4"></path><path d="m6 8-4 4 4 4"></path><path d="m14.5 4-5 16"></path>
+                    </svg>
+                    <span>Compiler</span>
                 </a>
+                <a href="/circuit" class="nav-item w-full text-left px-4 py-2 rounded-lg hover:bg-gray-800 transition flex items-center space-x-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
+                        <line x1="8" y1="21" x2="16" y2="21"></line>
+                        <line x1="12" y1="17" x2="12" y2="21"></line>
+                    </svg>
+                    <span>Circuit Builder</span>
+                </a>
+            </nav>
+
+            <h3 class="text-xs font-semibold text-gray-500 uppercase tracking-wide px-2 mb-2">Quick tour</h3>
+            <div class="space-y-1 px-1">
+                <a href="/compiler?example=START_HERE.qta&amp;lang=quanta&amp;tab=debug&amp;debug=1" class="block px-3 py-1.5 rounded text-xs text-gray-300 hover:bg-gray-800 hover:text-green-400 transition">★ Start here</a>
+                <a href="/compiler?example=debug_formats.qta&amp;lang=quanta&amp;tab=debug&amp;debug=1" class="block px-3 py-1.5 rounded text-xs text-gray-300 hover:bg-gray-800 hover:text-green-400 transition">Debug visualizers</a>
+                <a href="/compiler?example=bloch_sphere.qta&amp;lang=quanta&amp;tab=debug&amp;debug=1" class="block px-3 py-1.5 rounded text-xs text-gray-300 hover:bg-gray-800 hover:text-green-400 transition">Bloch sphere</a>
+                <a href="/compiler?example=bell.qasm&amp;lang=openqasm3&amp;tab=output" class="block px-3 py-1.5 rounded text-xs text-gray-300 hover:bg-gray-800 hover:text-green-400 transition">Bell (OpenQASM)</a>
+                <a href="/circuit" class="block px-3 py-1.5 rounded text-xs text-gray-300 hover:bg-gray-800 hover:text-green-400 transition">Visual builder</a>
             </div>
         </div>
 
-        <!-- Features Section -->
-        <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-6 mb-12">
-            <div class="theme-feature-card bg-[#1a1a1a] border border-gray-800 rounded-lg p-6">
-                <div class="text-green-400 text-3xl mb-4">⚛️</div>
-                <h3 class="text-xl font-semibold mb-2">OpenQASM 3 Support</h3>
-                <p class="theme-feature-text text-gray-400">Full support for OpenQASM 3 syntax with real-time syntax highlighting and validation.</p>
-            </div>
+        <main id="homeMain" class="app-main min-w-0">
+            <div class="home-hero-glow px-4 py-10 max-w-5xl mx-auto">
+                <!-- Hero -->
+                <section class="text-center mb-12">
+                    <p class="text-sm text-emerald-500/80 font-medium mb-2 tracking-wide uppercase">OpenQASM 3 + Quanta</p>
+                    <h2 class="text-3xl sm:text-4xl font-bold mb-4 text-gray-100">Compile, simulate &amp; debug quantum programs</h2>
+                    <p class="text-base sm:text-lg text-gray-400 mb-8 max-w-2xl mx-auto leading-relaxed">
+                        Monaco editor, live circuit diagrams, shot-based simulation, statevector debug with interactive visualizers, and a drag-and-drop circuit builder — all in one IDE.
+                    </p>
+                    <div class="flex flex-wrap justify-center gap-3">
+                        <a href="/compiler?example=START_HERE.qta&amp;lang=quanta&amp;tab=debug&amp;debug=1"
+                            class="px-6 py-3 bg-green-600 hover:bg-green-700 rounded-lg font-semibold transition text-white shadow-lg shadow-green-900/20">
+                            Start feature tour
+                        </a>
+                        <a href="/compiler" class="theme-secondary-btn px-6 py-3 bg-gray-800 hover:bg-gray-700 rounded-lg font-semibold transition border border-gray-700">
+                            Open compiler
+                        </a>
+                        <a href="/circuit" class="theme-secondary-btn px-6 py-3 bg-gray-800 hover:bg-gray-700 rounded-lg font-semibold transition border border-gray-700">
+                            Circuit builder
+                        </a>
+                    </div>
+                </section>
 
-            <div class="theme-feature-card bg-[#1a1a1a] border border-gray-800 rounded-lg p-6">
-                <div class="text-green-400 text-3xl mb-4">🖱️</div>
-                <h3 class="text-xl font-semibold mb-2">Drag & Drop Circuit Builder</h3>
-                <p class="theme-feature-text text-gray-400">Build quantum circuits visually by dragging gates from the palette. Real-time QASM code generation as you design.</p>
-            </div>
+                <!-- Three paths -->
+                <section class="grid md:grid-cols-3 gap-4 mb-12">
+                    <a href="/compiler?example=bell.qasm&amp;lang=openqasm3&amp;tab=output"
+                        class="home-path-card theme-feature-card bg-[#1a1a1a] border border-gray-800 rounded-lg p-5 block hover:border-emerald-700/50 transition">
+                        <p class="text-xs text-emerald-500 font-medium mb-1">Path 1</p>
+                        <h3 class="text-lg font-semibold mb-2">Write OpenQASM 3</h3>
+                        <p class="theme-feature-text text-sm text-gray-400">Edit .qasm code, preview circuits, run Aer simulation, view histograms in Dirac notation.</p>
+                        <p class="text-xs text-green-400 mt-3">Try bell.qasm →</p>
+                    </a>
+                    <a href="/compiler?example=debug_formats.qta&amp;lang=quanta&amp;tab=debug&amp;debug=1"
+                        class="home-path-card theme-feature-card bg-[#1a1a1a] border border-gray-800 rounded-lg p-5 block hover:border-emerald-700/50 transition">
+                        <p class="text-xs text-emerald-500 font-medium mb-1">Path 2</p>
+                        <h3 class="text-lg font-semibold mb-2">Quanta + debug</h3>
+                        <p class="theme-feature-text text-sm text-gray-400">High-level gates, Print() formats, Bloch spheres, density heatmaps, compile-to-QASM.</p>
+                        <p class="text-xs text-green-400 mt-3">Try debug_formats.qta →</p>
+                    </a>
+                    <a href="/circuit"
+                        class="home-path-card theme-feature-card bg-[#1a1a1a] border border-gray-800 rounded-lg p-5 block hover:border-emerald-700/50 transition">
+                        <p class="text-xs text-emerald-500 font-medium mb-1">Path 3</p>
+                        <h3 class="text-lg font-semibold mb-2">Visual builder</h3>
+                        <p class="theme-feature-text text-sm text-gray-400">Drag gates, use Bell/GHZ/QFT templates, generate QASM live, simulate from the canvas.</p>
+                        <p class="text-xs text-green-400 mt-3">Open circuit builder →</p>
+                    </a>
+                </section>
 
-            <div class="theme-feature-card bg-[#1a1a1a] border border-gray-800 rounded-lg p-6">
-                <div class="text-green-400 text-3xl mb-4">🔬</div>
-                <h3 class="text-xl font-semibold mb-2">Circuit Simulation</h3>
-                <p class="theme-feature-text text-gray-400">Run quantum circuit simulations and visualize results with histograms and probability distributions.</p>
-            </div>
+                <!-- Capabilities -->
+                <section class="mb-12">
+                    <h3 class="text-xl font-semibold mb-4 px-1">Capabilities</h3>
+                    <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                        <div class="theme-feature-card bg-[#1a1a1a] border border-gray-800 rounded-lg p-4">
+                            <h4 class="font-medium text-emerald-400 mb-1">Dual-language editor</h4>
+                            <p class="theme-feature-text text-xs text-gray-400">Syntax highlighting, error squiggles, IntelliSense, <code>///</code> doc templates.</p>
+                        </div>
+                        <div class="theme-feature-card bg-[#1a1a1a] border border-gray-800 rounded-lg p-4">
+                            <h4 class="font-medium text-emerald-400 mb-1">Simulation</h4>
+                            <p class="theme-feature-text text-xs text-gray-400">Configurable shots, histogram + counts table. <kbd class="theme-kbd bg-gray-800 px-1 rounded">Ctrl+Enter</kbd></p>
+                        </div>
+                        <div class="theme-feature-card bg-[#1a1a1a] border border-gray-800 rounded-lg p-4">
+                            <h4 class="font-medium text-emerald-400 mb-1">Circuit diagrams</h4>
+                            <p class="theme-feature-text text-xs text-gray-400">Live preview, PNG export, structured QASM for Quanta gate defs.</p>
+                        </div>
+                        <div class="theme-feature-card bg-[#1a1a1a] border border-gray-800 rounded-lg p-4">
+                            <h4 class="font-medium text-emerald-400 mb-1">Debug visualizers</h4>
+                            <p class="theme-feature-text text-xs text-gray-400">Prob bars, Bloch sphere, density heatmap, circuit trace. <kbd class="theme-kbd bg-gray-800 px-1 rounded">Ctrl+Shift+Enter</kbd></p>
+                        </div>
+                        <div class="theme-feature-card bg-[#1a1a1a] border border-gray-800 rounded-lg p-4">
+                            <h4 class="font-medium text-emerald-400 mb-1">Generated QASM</h4>
+                            <p class="theme-feature-text text-xs text-gray-400">Flat vs structured output, side-by-side compare, compile stats.</p>
+                        </div>
+                        <div class="theme-feature-card bg-[#1a1a1a] border border-gray-800 rounded-lg p-4">
+                            <h4 class="font-medium text-emerald-400 mb-1">File management</h4>
+                            <p class="theme-feature-text text-xs text-gray-400">Save, rename, download .qasm / .qta files; 19 built-in examples.</p>
+                        </div>
+                    </div>
+                </section>
 
-            <div class="theme-feature-card bg-[#1a1a1a] border border-gray-800 rounded-lg p-6">
-                <div class="text-green-400 text-3xl mb-4">📊</div>
-                <h3 class="text-xl font-semibold mb-2">Circuit Diagrams</h3>
-                <p class="theme-feature-text text-gray-400">Real-time circuit diagram generation with syntax-based color coding for gates and operations.</p>
-            </div>
+                <!-- Feature tour cards -->
+                <section class="mb-12">
+                    <h3 class="text-xl font-semibold mb-1 px-1">Feature tour</h3>
+                    <p class="theme-muted-text text-sm text-gray-500 mb-4 px-1">Click a card to open the compiler with that example loaded.</p>
+                    <div class="grid sm:grid-cols-2 gap-3">
+                        <a href="/compiler?example=bell.qasm&amp;lang=openqasm3&amp;tab=output" class="home-tour-card theme-quickstart-card bg-[#1a1a1a] border border-gray-800 rounded-lg p-4 block">
+                            <span class="text-[10px] uppercase tracking-wide text-gray-500">Simulate</span>
+                            <p class="font-medium mt-1">Bell state</p>
+                            <p class="text-xs text-gray-500 mt-1">bell.qasm · Bell Quanta.qta — ~50/50 on |00⟩|11⟩</p>
+                        </a>
+                        <a href="/compiler?example=debug_formats.qta&amp;lang=quanta&amp;tab=debug&amp;debug=1" class="home-tour-card theme-quickstart-card bg-[#1a1a1a] border border-gray-800 rounded-lg p-4 block">
+                            <span class="text-[10px] uppercase tracking-wide text-gray-500">Debug</span>
+                            <p class="font-medium mt-1">All Print formats</p>
+                            <p class="text-xs text-gray-500 mt-1">Hover underlined output; click to pin panels</p>
+                        </a>
+                        <a href="/compiler?example=bloch_sphere.qta&amp;lang=quanta&amp;tab=debug&amp;debug=1" class="home-tour-card theme-quickstart-card bg-[#1a1a1a] border border-gray-800 rounded-lg p-4 block">
+                            <span class="text-[10px] uppercase tracking-wide text-gray-500">Debug</span>
+                            <p class="font-medium mt-1">Bloch sphere</p>
+                            <p class="text-xs text-gray-500 mt-1">Hover preview → pin draggable 3D sphere</p>
+                        </a>
+                        <a href="/compiler?example=doc_gate.qta&amp;lang=quanta" class="home-tour-card theme-quickstart-card bg-[#1a1a1a] border border-gray-800 rounded-lg p-4 block">
+                            <span class="text-[10px] uppercase tracking-wide text-gray-500">IntelliSense</span>
+                            <p class="font-medium mt-1">/// documentation</p>
+                            <p class="text-xs text-gray-500 mt-1">Hover gates, Functions sidebar, autocomplete</p>
+                        </a>
+                        <a href="/compiler?example=structured_qasm.qta&amp;lang=quanta&amp;tab=qasm" class="home-tour-card theme-quickstart-card bg-[#1a1a1a] border border-gray-800 rounded-lg p-4 block">
+                            <span class="text-[10px] uppercase tracking-wide text-gray-500">Compile</span>
+                            <p class="font-medium mt-1">Structured QASM</p>
+                            <p class="text-xs text-gray-500 mt-1">Compare flat vs structured; compile stats</p>
+                        </a>
+                        <a href="/compiler?example=openqasm3_features.qasm&amp;lang=openqasm3" class="home-tour-card theme-quickstart-card bg-[#1a1a1a] border border-gray-800 rounded-lg p-4 block">
+                            <span class="text-[10px] uppercase tracking-wide text-gray-500">OpenQASM 3</span>
+                            <p class="font-medium mt-1">Advanced syntax</p>
+                            <p class="text-xs text-gray-500 mt-1">Parameters, aliases, while/if, gate modifiers</p>
+                        </a>
+                        <a href="/compiler?example=grover.qta&amp;lang=quanta" class="home-tour-card theme-quickstart-card bg-[#1a1a1a] border border-gray-800 rounded-lg p-4 block">
+                            <span class="text-[10px] uppercase tracking-wide text-gray-500">Algorithms</span>
+                            <p class="font-medium mt-1">Grover &amp; QFT</p>
+                            <p class="text-xs text-gray-500 mt-1">High-level Quanta algorithm gates</p>
+                        </a>
+                        <a href="/compiler?example=teleportation.qasm&amp;lang=openqasm3" class="home-tour-card theme-quickstart-card bg-[#1a1a1a] border border-gray-800 rounded-lg p-4 block">
+                            <span class="text-[10px] uppercase tracking-wide text-gray-500">OpenQASM 3</span>
+                            <p class="font-medium mt-1">Teleportation</p>
+                            <p class="text-xs text-gray-500 mt-1">Bell measurement + classical corrections</p>
+                        </a>
+                    </div>
+                </section>
 
-            <div class="theme-feature-card bg-[#1a1a1a] border border-gray-800 rounded-lg p-6">
-                <div class="text-green-400 text-3xl mb-4">💾</div>
-                <h3 class="text-xl font-semibold mb-2">Save & Load</h3>
-                <p class="theme-feature-text text-gray-400">Save your quantum circuits and load them later for continued development.</p>
-            </div>
+                <!-- Reference -->
+                <section class="grid md:grid-cols-2 gap-4 mb-10">
+                    <div class="theme-quickstart-card bg-[#1a1a1a] border border-gray-800 rounded-lg p-5">
+                        <h3 class="font-semibold mb-3">Shortcuts</h3>
+                        <ul class="theme-quickstart-text text-sm text-gray-300 space-y-2">
+                            <li><kbd class="theme-kbd bg-gray-800 px-2 py-0.5 rounded text-xs">Ctrl+Enter</kbd> Run simulation</li>
+                            <li><kbd class="theme-kbd bg-gray-800 px-2 py-0.5 rounded text-xs">Ctrl+Shift+Enter</kbd> Quanta debug</li>
+                            <li><kbd class="theme-kbd bg-gray-800 px-2 py-0.5 rounded text-xs">///</kbd> above <code>func</code> / <code>gate</code> → doc template</li>
+                            <li>Toggle <strong>Live debug</strong> in Debug tab for auto-refresh</li>
+                        </ul>
+                    </div>
+                    <div class="theme-quickstart-card bg-[#1a1a1a] border border-gray-800 rounded-lg p-5">
+                        <h3 class="font-semibold mb-3">Compiler tabs</h3>
+                        <ul class="theme-quickstart-text text-sm text-gray-300 space-y-2">
+                            <li><strong class="text-gray-200">Circuit</strong> — live diagram, PNG download</li>
+                            <li><strong class="text-gray-200">Generated QASM</strong> — Quanta compile output</li>
+                            <li><strong class="text-gray-200">Debug</strong> — statevector Print + visualizers</li>
+                            <li><strong class="text-gray-200">Simulation</strong> — shot histograms &amp; counts</li>
+                        </ul>
+                    </div>
+                </section>
 
-            <div class="theme-feature-card bg-[#1a1a1a] border border-gray-800 rounded-lg p-6">
-                <div class="text-green-400 text-3xl mb-4">🎨</div>
-                <h3 class="text-xl font-semibold mb-2">Theme Support</h3>
-                <p class="theme-feature-text text-gray-400">Switch between light and dark themes for comfortable coding in any environment.</p>
+                <p class="text-center text-xs text-gray-600 pb-8">
+                    19 examples in <code class="text-gray-500">frontend/static/Saved/</code> · sidebar <strong class="text-gray-500">Examples</strong> gallery in compiler
+                </p>
             </div>
-        </div>
-
-        <!-- Quick Start Section -->
-        <div class="theme-quickstart-card bg-[#1a1a1a] border border-gray-800 rounded-lg p-8 mb-8">
-            <h3 class="text-2xl font-semibold mb-4">Quick Start</h3>
-            <div class="space-y-4 theme-quickstart-text text-gray-300">
-                <div>
-                    <p class="font-semibold text-green-400 mb-2">Option 1: Code Editor</p>
-                    <p>1. Click "Open Compiler" to start coding</p>
-                    <p>2. Write your OpenQASM 3 code in the editor</p>
-                    <p>3. View the real-time circuit diagram</p>
-                    <p>4. Run simulations to see quantum state results</p>
-                    <p>5. Save your circuits for future use</p>
-                </div>
-                <div class="mt-6">
-                    <p class="font-semibold text-green-400 mb-2">Option 2: Visual Circuit Builder</p>
-                    <p>1. Click "Circuit Builder" to open the visual editor</p>
-                    <p>2. Drag gates from the palette onto the circuit canvas</p>
-                    <p>3. Add or remove qubits as needed</p>
-                    <p>4. Watch QASM code generate in real-time</p>
-                    <p>5. Run simulations or save your circuit</p>
-                </div>
-            </div>
-        </div>
+        </main>
     </div>
 
     <script src="{{ url_for('static', filename='js/app.js') }}"></script>
-    <script>
-        // Theme management for home page
-        function applyHomeTheme(theme) {
-            const isDark = theme === 'dark';
-            const config = themeConfig[theme];
-            
-            // Apply base theme
-            applyTheme(theme);
-            
-            // Update feature cards
-            const featureCards = document.querySelectorAll('.theme-feature-card');
-            featureCards.forEach(card => {
-                card.className = card.className.replace(/bg-\[#1a1a1a\]|bg-gray-100/g, config.sidebar.bg);
-                card.className = card.className.replace(/border-gray-800|border-gray-300/g, config.sidebar.border);
-            });
-            
-            // Update feature text
-            const featureTexts = document.querySelectorAll('.theme-feature-text');
-            featureTexts.forEach(text => {
-                text.className = text.className.replace(/text-gray-400|text-gray-600/g, isDark ? 'text-gray-400' : 'text-gray-600');
-            });
-            
-            // Update quick start card
-            const quickstartCard = document.querySelector('.theme-quickstart-card');
-            if (quickstartCard) {
-                quickstartCard.className = quickstartCard.className.replace(/bg-\[#1a1a1a\]|bg-gray-100/g, config.sidebar.bg);
-                quickstartCard.className = quickstartCard.className.replace(/border-gray-800|border-gray-300/g, config.sidebar.border);
-            }
-            
-            // Update quick start text
-            const quickstartTexts = document.querySelectorAll('.theme-quickstart-text');
-            quickstartTexts.forEach(text => {
-                text.className = text.className.replace(/text-gray-300|text-gray-700/g, isDark ? 'text-gray-300' : 'text-gray-700');
-            });
-            
-            // Update hero section text
-            const heroSubtitle = document.querySelector('.text-gray-400');
-            if (heroSubtitle && heroSubtitle.textContent.includes('powerful')) {
-                heroSubtitle.className = heroSubtitle.className.replace(/text-gray-400|text-gray-600/g, isDark ? 'text-gray-400' : 'text-gray-600');
-            }
-        }
-        
-        document.addEventListener('DOMContentLoaded', () => {
-            // Initialize theme icon
-            initializeThemeIcon();
-            
-            // Load and apply theme
-            const theme = localStorage.getItem('theme') || 'dark';
-            applyHomeTheme(theme);
-            
-            // Setup theme toggle
-            const themeToggle = document.getElementById('themeToggle');
-            if (themeToggle) {
-                themeToggle.addEventListener('click', () => {
-                    toggleTheme();
-                    const newTheme = localStorage.getItem('theme') || 'dark';
-                    applyHomeTheme(newTheme);
-                });
-            }
-        });
-    </script>
 </body>
 
 </html>

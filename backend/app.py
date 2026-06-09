@@ -88,7 +88,8 @@ def circuit_diagram():
     Expected JSON:
     {
         "code": "...",
-        "language": "openqasm3"  // optional, defaults to "openqasm3"
+        "language": "openqasm3",  // optional, defaults to "openqasm3"
+        "keep_structure": false   // optional, Quanta structured QASM
     }
     
     Returns:
@@ -107,6 +108,7 @@ def circuit_diagram():
         
         code = data.get('code', '')
         language = data.get('language', 'openqasm3')  # Default to OpenQASM 3
+        keep_structure = bool(data.get('keep_structure', False))
         
         if not code:
             return jsonify({
@@ -124,7 +126,7 @@ def circuit_diagram():
         # Parse circuit using appropriate parser
         try:
             from compiler.parser import parse_qasm
-            circuit = parse_qasm(code, language=language)
+            circuit = parse_qasm(code, language=language, keep_structure=keep_structure)
             
             if circuit is None:
                 return jsonify({
@@ -231,6 +233,7 @@ def download_circuit():
         
         code = data.get('code', '')
         language = data.get('language', 'openqasm3')  # Default to OpenQASM 3
+        keep_structure = bool(data.get('keep_structure', False))
         
         if not code:
             return jsonify({
@@ -248,7 +251,7 @@ def download_circuit():
         # Parse circuit using appropriate parser
         try:
             from compiler.parser import parse_qasm
-            circuit = parse_qasm(code, language=language)
+            circuit = parse_qasm(code, language=language, keep_structure=keep_structure)
             
             if circuit is None:
                 lang_name = 'Quanta' if language == 'quanta' else 'OpenQASM 3'
@@ -823,8 +826,10 @@ def debug_prints():
         from compiler.quanta_helpers import get_debug_prints, quanta_error_to_dict
         from quanta.errors import QuantaError
 
-        output = get_debug_prints(code)
-        return jsonify({"success": True, "output": output})
+        from compiler.quanta_helpers import get_debug_prints_structured
+
+        result = get_debug_prints_structured(code)
+        return jsonify({"success": True, **result})
 
     except ImportError as e:
         return jsonify({"success": False, "error": str(e)}), 400
@@ -847,6 +852,59 @@ def list_functions_endpoint():
         return jsonify({"success": True, "functions": docs})
     except ImportError as e:
         return jsonify({"success": False, "error": str(e)}), 400
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@app.route('/list-user-functions', methods=['POST'])
+def list_user_functions_endpoint():
+    """List user-defined gate/func docs from /// comments in source."""
+    try:
+        data = request.get_json() or {}
+        source = data.get('source', '')
+        if not source:
+            return jsonify({"success": True, "functions": []})
+        from compiler.quanta_helpers import get_user_function_docs_list
+
+        docs = get_user_function_docs_list(source)
+        return jsonify({"success": True, "functions": docs})
+    except ImportError as e:
+        return jsonify({"success": False, "error": str(e)}), 400
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@app.route('/quanta-version', methods=['GET'])
+def quanta_version_endpoint():
+    """Return installed quanta-lang version info."""
+    try:
+        from compiler.quanta_helpers import get_quanta_version_info
+
+        return jsonify({"success": True, **get_quanta_version_info()})
+    except ImportError as e:
+        return jsonify({"success": False, "error": str(e)}), 400
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@app.route('/compile-stats', methods=['POST'])
+def compile_stats_endpoint():
+    """Return QASM compile statistics for Quanta source."""
+    try:
+        data = request.get_json() or {}
+        code = data.get('code', '')
+        if not code:
+            return jsonify({"success": False, "error": "No code provided"}), 400
+        from compiler.quanta_helpers import get_compile_stats, quanta_error_to_dict
+        from quanta.errors import QuantaError
+
+        stats = get_compile_stats(code)
+        return jsonify({"success": True, "stats": stats})
+    except ImportError as e:
+        return jsonify({"success": False, "error": str(e)}), 400
+    except QuantaError as e:
+        info = quanta_error_to_dict(e)
+        return jsonify({"success": False, **info}), 400
     except Exception as e:
         return jsonify({"success": False, "error": str(e)}), 500
 

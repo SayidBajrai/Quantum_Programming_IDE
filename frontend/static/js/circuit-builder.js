@@ -94,6 +94,71 @@ function initializeGatePalette() {
     
     gatePalette.appendChild(singleSection);
     gatePalette.appendChild(multiSection);
+
+    const macroSection = document.createElement('div');
+    macroSection.className = 'mb-4';
+    const macroTitle = document.createElement('div');
+    macroTitle.className = `text-xs ${titleTextClass} mb-2 px-2`;
+    macroTitle.textContent = 'Templates';
+    macroSection.appendChild(macroTitle);
+
+    const macroBg = isDark ? 'bg-gray-800' : 'bg-gray-200';
+    const macroHover = isDark ? 'hover:bg-gray-700' : 'hover:bg-gray-300';
+    const macroText = isDark ? 'text-gray-100' : 'text-gray-900';
+
+    [
+        { label: 'Bell pair', apply: applyBellTemplate },
+        { label: 'GHZ (3)', apply: applyGhzTemplate },
+        { label: 'QFT (3)', apply: applyQftTemplate },
+    ].forEach(({ label, apply }) => {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = `w-full text-left px-3 py-2 rounded-lg ${macroBg} ${macroHover} transition text-sm mb-2 ${macroText}`;
+        btn.textContent = label;
+        btn.addEventListener('click', () => {
+            apply();
+            renderCircuit();
+            updateQASMCode();
+        });
+        macroSection.appendChild(btn);
+    });
+    gatePalette.appendChild(macroSection);
+}
+
+function applyBellTemplate() {
+    circuitState.qubits = 2;
+    circuitState.gates = [
+        { id: 'bell-h', qubit: 0, column: 0, gate: 'h', params: {} },
+        { id: 'bell-cx', qubit: 0, column: 1, gate: 'cx', params: {}, targetQubit: 1 },
+        { id: 'bell-m0', qubit: 0, column: 2, gate: 'measure', params: {} },
+        { id: 'bell-m1', qubit: 1, column: 2, gate: 'measure', params: {} },
+    ];
+}
+
+function applyGhzTemplate() {
+    circuitState.qubits = 3;
+    circuitState.gates = [
+        { id: 'ghz-h', qubit: 0, column: 0, gate: 'h', params: {} },
+        { id: 'ghz-cx1', qubit: 0, column: 1, gate: 'cx', params: {}, targetQubit: 1 },
+        { id: 'ghz-cx2', qubit: 1, column: 2, gate: 'cx', params: {}, targetQubit: 2 },
+        { id: 'ghz-m0', qubit: 0, column: 3, gate: 'measure', params: {} },
+        { id: 'ghz-m1', qubit: 1, column: 3, gate: 'measure', params: {} },
+        { id: 'ghz-m2', qubit: 2, column: 3, gate: 'measure', params: {} },
+    ];
+}
+
+function applyQftTemplate() {
+    circuitState.qubits = 3;
+    circuitState.gates = [
+        { id: 'qft-h0', qubit: 0, column: 0, gate: 'h', params: {} },
+        { id: 'qft-cz01', qubit: 1, column: 1, gate: 'cz', params: {}, targetQubit: 0 },
+        { id: 'qft-h1', qubit: 1, column: 2, gate: 'h', params: {} },
+        { id: 'qft-cz21', qubit: 2, column: 3, gate: 'cz', params: {}, targetQubit: 1 },
+        { id: 'qft-cz20', qubit: 2, column: 4, gate: 'cz', params: {}, targetQubit: 0 },
+        { id: 'qft-h2', qubit: 2, column: 5, gate: 'h', params: {} },
+        { id: 'qft-sw01', qubit: 0, column: 6, gate: 'swap', params: {}, targetQubit: 1 },
+        { id: 'qft-sw12', qubit: 1, column: 7, gate: 'swap', params: {}, targetQubit: 2 },
+    ];
 }
 
 function updateGatePaletteTheme(isDark) {
@@ -1067,6 +1132,13 @@ function initializeMonacoEditor() {
         // Make it accessible globally for app.js functions
         window.monacoEditor = circuitBuilderMonacoEditor;
         window.circuitBuilderMonacoEditor = circuitBuilderMonacoEditor;
+
+        if (typeof applyCircuitPageTheme === 'function') {
+            applyCircuitPageTheme(localStorage.getItem('theme') || 'dark');
+        } else if (typeof updateMonacoEditorTheme === 'function') {
+            updateMonacoEditorTheme(isDark);
+            circuitBuilderMonacoEditor.updateOptions({ theme: 'openqasm-theme' });
+        }
         
         // Update initial code
         updateQASMCode();

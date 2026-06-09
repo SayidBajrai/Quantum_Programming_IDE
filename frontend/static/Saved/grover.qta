@@ -1,8 +1,8 @@
-// Grover search for |101>
-qint[3] x
+// Grover search — algorithm showcase (qint register syntax)
+qint(3) search
 bit[3] c
 
-H(x)
-Grover(x, 5)
-Measure(x, c)
+H(search)
+Grover(search, 5)
+Measure(search, c)
 Print(c)

@@ -51,8 +51,44 @@ const qasmCompareView = document.getElementById('qasmCompareView');
 const generatedQasmFlat = document.getElementById('generatedQasmFlat');
 const generatedQasmStructured = document.getElementById('generatedQasmStructured');
 const syntaxErrorBadge = document.getElementById('syntaxErrorBadge');
+const liveDebugCheckbox = document.getElementById('liveDebugCheckbox');
+const compileStatsPanel = document.getElementById('compileStatsPanel');
+const quantaVersionBadge = document.getElementById('quantaVersionBadge');
+const exampleCategory = document.getElementById('exampleCategory');
+const exampleGallery = document.getElementById('exampleGallery');
+const quantaFnCategory = document.getElementById('quantaFnCategory');
+const quantaFnList = document.getElementById('quantaFnList');
 
 let lastQuantaQasmText = '';
+let liveDebugTimeout = null;
+let debugRunning = false;
+
+const EXAMPLE_GALLERY = [
+    // Quanta — basics
+    { file: 'START_HERE.qta', label: '★ Start here', category: 'basics', lang: 'quanta', tab: 'debug', debug: true },
+    { file: 'Bell Quanta.qta', label: 'Bell state', category: 'basics', lang: 'quanta' },
+    { file: 'superposition.qta', label: 'Superposition', category: 'basics', lang: 'quanta' },
+    { file: 'ghz.qta', label: 'GHZ state', category: 'basics', lang: 'quanta' },
+    { file: 'doc_gate.qta', label: 'Documented gate', category: 'basics', lang: 'quanta' },
+    { file: 'ctrl_inv_demo.qta', label: 'ctrl / inv', category: 'basics', lang: 'quanta', tab: 'debug', debug: true },
+    { file: 'structured_qasm.qta', label: 'Structured QASM', category: 'basics', lang: 'quanta', tab: 'qasm' },
+    // Quanta — algorithms
+    { file: 'grover.qta', label: 'Grover search', category: 'algorithms', lang: 'quanta' },
+    { file: 'qft.qta', label: 'QFT', category: 'algorithms', lang: 'quanta' },
+    // Quanta — debug
+    { file: 'debug_formats.qta', label: 'Debug formats', category: 'debug', lang: 'quanta', tab: 'debug', debug: true },
+    { file: 'bloch_sphere.qta', label: 'Bloch sphere', category: 'debug', lang: 'quanta', tab: 'debug', debug: true },
+    { file: 'fidelity_demo.qta', label: 'Fidelity', category: 'debug', lang: 'quanta', tab: 'debug', debug: true },
+    // Quanta — arithmetic
+    { file: 'qint_arithmetic.qta', label: 'QInt arithmetic', category: 'arithmetic', lang: 'quanta', tab: 'debug', debug: true },
+    // OpenQASM 3
+    { file: 'bell.qasm', label: 'Bell state', category: 'basics', lang: 'openqasm3' },
+    { file: 'superposition.qasm', label: 'Superposition', category: 'basics', lang: 'openqasm3' },
+    { file: 'ghz.qasm', label: 'GHZ state', category: 'basics', lang: 'openqasm3' },
+    { file: 'phase_demo.qasm', label: 'Rotations', category: 'basics', lang: 'openqasm3' },
+    { file: 'teleportation.qasm', label: 'Teleportation', category: 'algorithms', lang: 'openqasm3' },
+    { file: 'openqasm3_features.qasm', label: 'OQ3 advanced', category: 'advanced', lang: 'openqasm3' },
+];
 
 // Global variable to store Monaco theme configuration
 let monacoThemeConfig = null;
@@ -190,10 +226,11 @@ function initializeMonacoEditor() {
         });
         
         // Define Quanta language tokens (0.1.14 spec)
+        const quantaDocTypePattern = /\b(?:var|qbit|bit|qint|bint|qdec|qfloat|int|float|bool|str|list|dict)(?:\[[^\]]*\])?\b/;
         monaco.languages.setMonarchTokensProvider('quanta', {
             tokenizer: {
                 root: [
-                    [/\/\/\/.*$/, 'comment'],
+                    [/\/\/\//, { token: 'comment', next: '@docline' }],
                     [/\/\/.*$/, 'comment'],
 
                     [/\b(if|else|for|while|break|continue|return)\b/, 'controlflow'],
@@ -211,6 +248,7 @@ function initializeMonacoEditor() {
 
                     [/\b([a-zA-Z_][a-zA-Z0-9_]*)\s*\(/, 'function'],
 
+                    [/[⊙⊗]/, 'operator'],
                     [/[+\-*/%=<>!&|.]+/, 'operator'],
                     [/[(),;\[\]{}]/, 'delimiter'],
                     [/\d+\.?\d*/, 'number'],
@@ -218,6 +256,17 @@ function initializeMonacoEditor() {
                     [/"(?:\\.|[^"\\])*"/, 'string'],
                     [/[a-zA-Z_][a-zA-Z0-9_]*/, 'identifier'],
                     [/\s+/, 'white']
+                ],
+                docline: [
+                    [/\s+/, 'comment'],
+                    [/-.*$/, 'comment', '@pop'],
+                    [/\breturn\b/, 'controlflow'],
+                    [/\s*:/, 'comment'],
+                    [quantaDocTypePattern, 'keyword'],
+                    [/\s+/, 'comment'],
+                    [/[a-zA-Z_][a-zA-Z0-9_]*/, 'identifier'],
+                    [/\s+-\s+.*$/, 'comment', '@pop'],
+                    [/.*$/, 'comment', '@pop']
                 ]
             }
         });
@@ -267,6 +316,9 @@ function initializeMonacoEditor() {
         if (typeof setupQuantaDocAutoGenerate === 'function') {
             setupQuantaDocAutoGenerate(monacoEditor);
         }
+        if (typeof setupQuantaSymbolConvert === 'function') {
+            setupQuantaSymbolConvert(monacoEditor);
+        }
         if (typeof setupQuantaDocCacheInvalidation === 'function') {
             setupQuantaDocCacheInvalidation(monacoEditor);
         }
@@ -280,8 +332,13 @@ function initializeMonacoEditor() {
             window.circuitUpdateTimeout = setTimeout(() => {
                 updateCircuitDiagram();
                 updateGeneratedQasm();
+                refreshQuantaFunctionBrowser();
             }, 500);
+            scheduleLiveDebug();
         });
+
+        initExampleGallery();
+        initQuantaExtras();
         
         // Keyboard shortcut: Ctrl+Enter to run, Ctrl+Shift+Enter to debug
         monacoEditor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.Enter, () => {
@@ -293,9 +350,10 @@ function initializeMonacoEditor() {
         
         // Initialize circuit diagram and Quanta UI
         if (circuitDiagram) {
-            setTimeout(() => {
+            setTimeout(async () => {
                 updateCircuitDiagram();
                 updateQuantaUI();
+                await loadExampleFromUrl();
             }, 100);
         }
     });
@@ -425,13 +483,149 @@ function updateQuantaUI() {
     if (keepStructureLabel) {
         keepStructureLabel.classList.toggle('hidden', !isQuanta);
     }
+    if (compileStatsPanel) {
+        compileStatsPanel.classList.toggle('hidden', !isQuanta);
+    }
+    if (quantaVersionBadge) {
+        quantaVersionBadge.classList.toggle('hidden', !isQuanta);
+    }
 
     if (isQuanta) {
         updateGeneratedQasm();
+        refreshQuantaFunctionBrowser();
+        fetchQuantaVersion();
     } else if (generatedQasm) {
         generatedQasm.textContent = '// Generated QASM is available when editing Quanta code';
         if (qasmStatus) qasmStatus.textContent = 'N/A';
+        if (compileStatsPanel) compileStatsPanel.innerHTML = '';
     }
+}
+
+async function fetchQuantaVersion() {
+    if (!quantaVersionBadge) return;
+    try {
+        const res = await fetch('/quanta-version');
+        const data = await res.json();
+        if (data.success) {
+            quantaVersionBadge.textContent = `quanta ${data.installed}`;
+            quantaVersionBadge.title = `Required: >=${data.required_min}`;
+        }
+    } catch { /* ignore */ }
+}
+
+function refreshQuantaFunctionBrowser() {
+    if (typeof populateQuantaFunctionBrowser !== 'function') return;
+    const language = codeFormatSelect ? codeFormatSelect.value : 'openqasm3';
+    if (language !== 'quanta') return;
+    const source = monacoEditor ? monacoEditor.getValue() : '';
+    populateQuantaFunctionBrowser(quantaFnCategory, quantaFnList, source);
+}
+
+function initQuantaExtras() {
+    fetchQuantaVersion();
+    refreshQuantaFunctionBrowser();
+}
+
+function initExampleGallery() {
+    if (!exampleGallery) return;
+    function render() {
+        const cat = exampleCategory ? exampleCategory.value : 'all';
+        const language = codeFormatSelect ? codeFormatSelect.value : 'openqasm3';
+        const items = EXAMPLE_GALLERY.filter(e =>
+            (cat === 'all' || e.category === cat) && e.lang === language
+        );
+        exampleGallery.innerHTML = items.length
+            ? items.map(e =>
+                `<button type="button" class="example-gallery-btn w-full text-left px-2 py-1 rounded hover:bg-gray-800 text-xs text-gray-300" data-file="${e.file}" data-tab="${e.tab || ''}" data-debug="${e.debug ? '1' : ''}">${e.label}</button>`
+            ).join('')
+            : '<div class="text-xs text-gray-500 px-2">No examples for this language/category</div>';
+        exampleGallery.querySelectorAll('.example-gallery-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                loadExampleIntoEditor(btn.dataset.file, {
+                    tab: btn.dataset.tab || undefined,
+                    runDebug: btn.dataset.debug === '1',
+                });
+            });
+        });
+    }
+    if (exampleCategory) exampleCategory.addEventListener('change', render);
+    if (codeFormatSelect) codeFormatSelect.addEventListener('change', render);
+    render();
+}
+
+async function loadExampleIntoEditor(filename, options = {}) {
+    const code = await loadSavedExample(filename);
+    if (!code || !monacoEditor) return false;
+
+    const lang = options.lang
+        || (filename.toLowerCase().endsWith('.qta') ? 'quanta' : 'openqasm3');
+
+    if (codeFormatSelect) {
+        codeFormatSelect.value = lang;
+        localStorage.setItem('codeFormat', lang);
+    }
+    monaco.editor.setModelLanguage(monacoEditor.getModel(), lang === 'quanta' ? 'quanta' : 'openqasm3');
+    monacoEditor.updateOptions({ theme: lang === 'quanta' ? 'quanta-theme' : 'openqasm-theme' });
+    monacoEditor.setValue(code);
+    setCurrentOpenFilename(filename);
+    updateQuantaUI();
+    updateCircuitDiagram();
+
+    if (options.tab) switchRightTab(options.tab);
+    if (options.runDebug && lang === 'quanta') {
+        setTimeout(() => runDebug({ silent: false }), 300);
+    }
+    return true;
+}
+
+async function loadExampleFromUrl() {
+    const params = new URLSearchParams(window.location.search);
+    const example = params.get('example');
+    if (!example) return;
+    const lang = params.get('lang') || undefined;
+    const tab = params.get('tab') || undefined;
+    const runDebug = params.get('debug') === '1' || tab === 'debug';
+    await loadExampleIntoEditor(example, { lang, tab, runDebug });
+}
+
+window.loadExampleIntoEditor = loadExampleIntoEditor;
+
+async function updateCompileStats(code) {
+    if (!compileStatsPanel) return;
+    if (!code || !code.trim()) {
+        compileStatsPanel.innerHTML = '';
+        return;
+    }
+    try {
+        const res = await fetch('/compile-stats', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ code }),
+        });
+        const data = await res.json();
+        if (!data.success || !data.stats) {
+            compileStatsPanel.innerHTML = '';
+            return;
+        }
+        const flat = data.stats.flat || {};
+        const structured = data.stats.structured || {};
+        compileStatsPanel.innerHTML = `
+            <span>Flat: ${flat.qasm_lines ?? '?'} lines · ${flat.gate_ops ?? '?'} gates</span>
+            <span>Structured: ${structured.qasm_lines ?? '?'} lines · ${structured.gate_ops ?? '?'} gates</span>
+        `;
+    } catch {
+        compileStatsPanel.innerHTML = '';
+    }
+}
+
+function scheduleLiveDebug() {
+    if (!liveDebugCheckbox || !liveDebugCheckbox.checked) return;
+    const language = codeFormatSelect ? codeFormatSelect.value : 'openqasm3';
+    if (language !== 'quanta') return;
+    clearTimeout(liveDebugTimeout);
+    liveDebugTimeout = setTimeout(() => {
+        if (!debugRunning) runDebug({ silent: true });
+    }, 1500);
 }
 
 async function updateGeneratedQasm() {
@@ -491,6 +685,7 @@ async function updateGeneratedQasm() {
                 lastQuantaQasmText = data.qasm;
                 qasmStatus.textContent = keepStructure ? 'Valid (structured)' : 'Valid (flattened)';
             }
+            updateCompileStats(code);
         } else {
             const err = data.error || 'Compilation failed';
             generatedQasm.textContent = err;
@@ -562,7 +757,8 @@ function insertDebugSnippet(snippet) {
     monacoEditor.focus();
 }
 
-async function runDebug() {
+async function runDebug(options = {}) {
+    const silent = options.silent === true;
     if (!debugOutput) return;
 
     const code = normalizeLineEndings(monacoEditor ? monacoEditor.getValue() : '').trim();
@@ -573,15 +769,19 @@ async function runDebug() {
     }
 
     if (!code) {
-        if (debugErrorMessage) debugErrorMessage.textContent = 'Please enter some Quanta code';
-        if (debugErrorDisplay) debugErrorDisplay.classList.remove('hidden');
+        if (!silent) {
+            if (debugErrorMessage) debugErrorMessage.textContent = 'Please enter some Quanta code';
+            if (debugErrorDisplay) debugErrorDisplay.classList.remove('hidden');
+        }
         return;
     }
 
+    if (debugRunning) return;
+    debugRunning = true;
     if (debugBtn) debugBtn.disabled = true;
-    if (debugStatus) debugStatus.textContent = 'Running statevector debug...';
+    if (debugStatus) debugStatus.textContent = silent ? 'Live debug...' : 'Running statevector debug...';
     if (debugErrorDisplay) debugErrorDisplay.classList.add('hidden');
-    switchRightTab('debug');
+    if (!silent) switchRightTab('debug');
 
     try {
         const response = await fetch('/debug-prints', {
@@ -593,54 +793,76 @@ async function runDebug() {
         const data = await response.json();
 
         if (data.success) {
-            const output = data.output || '(no output)';
-            if (typeof updateDebugOutputWithBloch === 'function') {
-                updateDebugOutputWithBloch(output);
+            if (typeof updateDebugOutput === 'function') {
+                updateDebugOutput(data);
             } else {
-                debugOutput.textContent = output;
+                debugOutput.textContent = data.output || '(no output)';
             }
-            if (debugStatus) debugStatus.textContent = 'Debug complete';
+            if (debugStatus) {
+                const warn = (data.warnings || []).join(' ');
+                debugStatus.textContent = warn ? `Debug complete — ${warn}` : (silent ? 'Live debug ready' : 'Debug complete');
+            }
         } else {
-            if (typeof updateDebugOutputWithBloch === 'function') {
-                updateDebugOutputWithBloch('Run debug to see Print() output here');
-            } else {
-                debugOutput.textContent = 'Run debug to see Print() output here';
+            if (!silent) {
+                if (typeof updateDebugOutput === 'function') {
+                    updateDebugOutput({ output: 'Run debug to see Print() output here', blocks: [], warnings: [] });
+                } else {
+                    debugOutput.textContent = 'Run debug to see Print() output here';
+                }
+                if (debugErrorMessage) debugErrorMessage.textContent = data.error || 'Debug failed';
+                if (debugErrorDisplay) debugErrorDisplay.classList.remove('hidden');
+                if (debugStatus) debugStatus.textContent = 'Debug failed';
+            } else if (debugStatus) {
+                debugStatus.textContent = data.error || 'Live debug error';
             }
-            if (debugErrorMessage) debugErrorMessage.textContent = data.error || 'Debug failed';
-            if (debugErrorDisplay) debugErrorDisplay.classList.remove('hidden');
-            if (debugStatus) debugStatus.textContent = 'Debug failed';
         }
     } catch (error) {
-        if (debugErrorMessage) debugErrorMessage.textContent = `Network error: ${error.message}`;
-        if (debugErrorDisplay) debugErrorDisplay.classList.remove('hidden');
+        if (!silent) {
+            if (debugErrorMessage) debugErrorMessage.textContent = `Network error: ${error.message}`;
+            if (debugErrorDisplay) debugErrorDisplay.classList.remove('hidden');
+        }
         if (debugStatus) debugStatus.textContent = 'Error';
     } finally {
+        debugRunning = false;
         if (debugBtn) debugBtn.disabled = false;
+    }
+}
+
+function syncAppShellLayout() {
+    const topBar = document.getElementById('topBar');
+    if (topBar) {
+        document.documentElement.style.setProperty('--top-bar-height', `${topBar.offsetHeight}px`);
     }
 }
 
 // Initialize
 document.addEventListener('DOMContentLoaded', () => {
+    syncAppShellLayout();
     initializeThemeIcon();
     loadTheme();
+    syncAppShellLayout();
     loadSidebarState();
     loadResizeState();
-    loadSavedState();
+    loadSidebarSectionStates();
 
-    if (debugOutput && typeof setupBlochDebugVisualization === 'function') {
-        setupBlochDebugVisualization(debugOutput);
+    if (debugOutput) {
+        const blochHandlers = typeof setupBlochHandlers === 'function' ? setupBlochHandlers() : null;
+        if (typeof setupDebugVisualizers === 'function') {
+            setupDebugVisualizers(debugOutput, blochHandlers);
+        }
     }
     
-    // Only initialize Monaco if not on circuit builder page (circuit builder has its own initialization)
-    if (!document.getElementById('circuitBuilder')) {
-        // Load Monaco theme config first, then initialize Monaco editor
-        loadMonacoThemeConfig().then(() => {
+    // Load Monaco theme config; circuit builder initializes its own editor instance
+    loadMonacoThemeConfig().then(() => {
+        if (codeEditorContainer && !document.getElementById('circuitBuilder')) {
             initializeMonacoEditor();
-        }).catch((error) => {
-            console.error('Failed to load Monaco theme config, using defaults:', error);
-            initializeMonacoEditor(); // Initialize with defaults if config fails to load
-        });
-    }
+        }
+    }).catch((error) => {
+        console.error('Failed to load Monaco theme config, using defaults:', error);
+        if (codeEditorContainer && !document.getElementById('circuitBuilder')) {
+            initializeMonacoEditor();
+        }
+    });
     
     setupEventListeners();
     
@@ -649,9 +871,13 @@ document.addEventListener('DOMContentLoaded', () => {
     window.addEventListener('resize', () => {
         clearTimeout(resizeTimeout);
         resizeTimeout = setTimeout(() => {
+            syncAppShellLayout();
             updateResizeOnWindowResize();
             if (monacoEditor) {
                 monacoEditor.layout();
+            }
+            if (window.circuitBuilderMonacoEditor) {
+                window.circuitBuilderMonacoEditor.layout();
             }
         }, 100); // Debounce resize events
     });
@@ -728,27 +954,53 @@ function updateResizeOnWindowResize() {
     }
 }
 
-function loadSavedState() {
-    if (savedExamples) {
-        const isCollapsed = localStorage.getItem('savedCollapsed') === 'true';
-        const toggleIcon = document.getElementById('savedToggleIcon');
-        
-        if (isCollapsed) {
-            savedExamples.classList.add('hidden');
-            if (toggleIcon) {
-                // Collapsed: arrow down
-                toggleIcon.setAttribute('d', 'M19 9l-7 7-7-7');
-            }
-        } else {
-            savedExamples.classList.remove('hidden');
-            // Load saved files when expanded
-            loadSavedFiles();
-            if (toggleIcon) {
-                // Expanded: arrow up
-                toggleIcon.setAttribute('d', 'M5 15l7-7 7 7');
-            }
-        }
+const SIDEBAR_COLLAPSED_ICON = 'M19 9l-7 7-7-7';
+const SIDEBAR_EXPANDED_ICON = 'M5 15l7-7 7 7';
+
+function setSidebarSectionCollapsed(contentEl, toggleIcon, collapsed) {
+    if (!contentEl) return;
+    if (collapsed) {
+        contentEl.classList.add('hidden');
+        if (toggleIcon) toggleIcon.setAttribute('d', SIDEBAR_COLLAPSED_ICON);
+    } else {
+        contentEl.classList.remove('hidden');
+        if (toggleIcon) toggleIcon.setAttribute('d', SIDEBAR_EXPANDED_ICON);
     }
+}
+
+function initSidebarSectionToggle(toggleBtn, contentEl, storageKey, onExpand) {
+    if (!toggleBtn || !contentEl) return;
+    const toggleIcon = toggleBtn.querySelector('path');
+    const isCollapsed = localStorage.getItem(storageKey) === 'true';
+    setSidebarSectionCollapsed(contentEl, toggleIcon, isCollapsed);
+    if (!isCollapsed && onExpand) onExpand();
+
+    toggleBtn.addEventListener('click', () => {
+        const isCurrentlyCollapsed = contentEl.classList.contains('hidden');
+        if (isCurrentlyCollapsed) {
+            setSidebarSectionCollapsed(contentEl, toggleIcon, false);
+            localStorage.setItem(storageKey, 'false');
+            if (onExpand) onExpand();
+        } else {
+            setSidebarSectionCollapsed(contentEl, toggleIcon, true);
+            localStorage.setItem(storageKey, 'true');
+        }
+    });
+}
+
+function loadSidebarSectionStates() {
+    initSidebarSectionToggle(savedToggle, savedExamples, 'savedCollapsed', loadSavedFiles);
+    initSidebarSectionToggle(
+        document.getElementById('functionsToggle'),
+        document.getElementById('functionsContent'),
+        'functionsCollapsed',
+        refreshQuantaFunctionBrowser
+    );
+    initSidebarSectionToggle(
+        document.getElementById('examplesToggle'),
+        document.getElementById('examplesContent'),
+        'examplesCollapsed'
+    );
 }
 
 async function loadSavedFiles() {
@@ -988,7 +1240,10 @@ function setupEventListeners() {
     if (downloadCircuitBtn) {
         downloadCircuitBtn.addEventListener('click', downloadCircuitDiagram);
     }
-    themeToggle.addEventListener('click', toggleTheme);
+    const themeBtn = document.getElementById('themeToggle');
+    if (themeBtn) {
+        themeBtn.addEventListener('click', toggleTheme);
+    }
     
     // Code format selector
     if (codeFormatSelect) {
@@ -1026,11 +1281,21 @@ function setupEventListeners() {
         keepStructureCheckbox.addEventListener('change', (e) => {
             localStorage.setItem('keepStructure', e.target.checked ? 'true' : 'false');
             updateGeneratedQasm();
+            updateCircuitDiagram();
         });
     }
 
     if (debugBtn) {
-        debugBtn.addEventListener('click', runDebug);
+        debugBtn.addEventListener('click', () => runDebug());
+    }
+
+    if (liveDebugCheckbox) {
+        const savedLive = localStorage.getItem('liveDebug') === 'true';
+        liveDebugCheckbox.checked = savedLive;
+        liveDebugCheckbox.addEventListener('change', (e) => {
+            localStorage.setItem('liveDebug', e.target.checked ? 'true' : 'false');
+            if (e.target.checked) scheduleLiveDebug();
+        });
     }
 
     if (copyQasmBtn) {
@@ -1060,33 +1325,6 @@ function setupEventListeners() {
     }
     if (sidebarToggleMobile) {
         sidebarToggleMobile.addEventListener('click', toggleSidebar);
-    }
-    
-    // Saved section toggle
-    if (savedToggle && savedExamples) {
-        savedToggle.addEventListener('click', () => {
-            const isCollapsed = savedExamples.classList.contains('hidden');
-            const toggleIcon = document.getElementById('savedToggleIcon');
-            
-            if (isCollapsed) {
-                // Expanding: show arrow up, load files
-                savedExamples.classList.remove('hidden');
-                localStorage.setItem('savedCollapsed', 'false');
-                loadSavedFiles(); // Refresh files when expanding
-                if (toggleIcon) {
-                    // Expanded: arrow up
-                    toggleIcon.setAttribute('d', 'M5 15l7-7 7 7');
-                }
-            } else {
-                // Collapsing: show arrow down
-                savedExamples.classList.add('hidden');
-                localStorage.setItem('savedCollapsed', 'true');
-                if (toggleIcon) {
-                    // Collapsed: arrow down
-                    toggleIcon.setAttribute('d', 'M19 9l-7 7-7-7');
-                }
-            }
-        });
     }
     
     // Compiler editor listeners (not used on circuit builder page)
@@ -1734,6 +1972,9 @@ async function updateCircuitDiagram() {
     circuitStatus.textContent = 'Generating...';
     
     try {
+        const keepStructure = (language === 'quanta' && keepStructureCheckbox)
+            ? keepStructureCheckbox.checked
+            : false;
         const response = await fetch('/circuit-diagram', {
             method: 'POST',
             headers: {
@@ -1741,7 +1982,8 @@ async function updateCircuitDiagram() {
             },
             body: JSON.stringify({
                 code: code,
-                language: language
+                language: language,
+                keep_structure: keepStructure,
             })
         });
         
@@ -1754,7 +1996,7 @@ async function updateCircuitDiagram() {
                 circuitDiagram.innerHTML = `
                     <pre class="font-mono text-xs whitespace-pre overflow-x">${coloredText}</pre>
                 `;
-                circuitStatus.textContent = 'Valid (text)';
+                circuitStatus.textContent = keepStructure ? 'Valid (structured)' : 'Valid (text)';
             }
         } else {
             circuitDiagram.innerHTML = `
@@ -2286,13 +2528,136 @@ function updateMonacoEditorTheme(isDark) {
 }
 
 
+function applyHomePageTheme(theme) {
+    const cards = document.querySelectorAll('.theme-feature-card, .theme-quickstart-card');
+    if (!cards.length) return;
+
+    const isDark = theme === 'dark';
+    const config = themeConfig[theme];
+
+    cards.forEach((card) => {
+        card.className = card.className.replace(/bg-\[#1a1a1a\]|bg-gray-100/g, config.sidebar.bg);
+        card.className = card.className.replace(/border-gray-800|border-gray-300/g, config.sidebar.border);
+    });
+
+    document.querySelectorAll('.theme-feature-text').forEach((el) => {
+        el.className = el.className.replace(/text-gray-400|text-gray-600/g, isDark ? 'text-gray-400' : 'text-gray-600');
+    });
+    document.querySelectorAll('.theme-quickstart-text').forEach((el) => {
+        el.className = el.className.replace(/text-gray-300|text-gray-700/g, isDark ? 'text-gray-300' : 'text-gray-700');
+    });
+    document.querySelectorAll('.theme-hero-subtitle').forEach((el) => {
+        el.className = el.className.replace(/text-gray-400|text-gray-600/g, isDark ? 'text-gray-400' : 'text-gray-600');
+    });
+    document.querySelectorAll('.theme-muted-text').forEach((el) => {
+        el.className = el.className.replace(/text-gray-500|text-gray-600/g, isDark ? 'text-gray-500' : 'text-gray-600');
+    });
+    document.querySelectorAll('.theme-secondary-btn').forEach((el) => {
+        el.className = el.className.replace(/bg-gray-800|bg-gray-200/g, isDark ? 'bg-gray-800' : 'bg-gray-200');
+        el.className = el.className.replace(/hover:bg-gray-700|hover:bg-gray-300/g, isDark ? 'hover:bg-gray-700' : 'hover:bg-gray-300');
+        el.className = el.className.replace(/border-gray-700|border-gray-300/g, isDark ? 'border-gray-700' : 'border-gray-300');
+        el.className = el.className.replace(/text-white|text-gray-900/g, isDark ? 'text-white' : 'text-gray-900');
+    });
+    document.querySelectorAll('.theme-kbd').forEach((el) => {
+        el.className = el.className.replace(/bg-gray-800|bg-gray-200/g, isDark ? 'bg-gray-800' : 'bg-gray-200');
+    });
+    document.querySelectorAll('.theme-table-head').forEach((el) => {
+        el.className = el.className.replace(/text-gray-500|text-gray-600/g, isDark ? 'text-gray-500' : 'text-gray-600');
+        el.className = el.className.replace(/border-gray-800|border-gray-300/g, config.sidebar.border);
+    });
+    document.querySelectorAll('.theme-table-divide').forEach((el) => {
+        el.className = el.className.replace(/divide-gray-800\/80|divide-gray-300/g, isDark ? 'divide-gray-800/80' : 'divide-gray-300');
+    });
+
+    const homeSidebar = document.getElementById('sidebar');
+    if (homeSidebar && document.getElementById('homeMain')) {
+        homeSidebar.querySelectorAll('a.block').forEach((link) => {
+            link.className = link.className.replace(/text-gray-300|text-gray-700/g, isDark ? 'text-gray-300' : 'text-gray-700');
+            link.className = link.className.replace(/hover:bg-gray-800|hover:bg-gray-200/g, isDark ? 'hover:bg-gray-800' : 'hover:bg-gray-200');
+        });
+    }
+}
+
+function applyCircuitPageTheme(theme) {
+    if (!document.getElementById('circuitBuilder')) return;
+
+    const isDark = theme === 'dark';
+    const config = themeConfig[theme];
+
+    const circuitBuilderContainer = document.getElementById('circuitBuilderContainer');
+    if (circuitBuilderContainer) {
+        circuitBuilderContainer.className = circuitBuilderContainer.className.replace(/bg-black|bg-white/g, config.codeEditor.bg);
+        circuitBuilderContainer.className = circuitBuilderContainer.className.replace(/border-gray-800|border-gray-300/g, config.codeEditor.border);
+    }
+
+    document.querySelectorAll('#clearCircuitBtn, #addQubitBtn, #removeQubitBtn, #saveBtn, #runBtn').forEach((btn) => {
+        if (btn.id === 'addQubitBtn' || btn.id === 'removeQubitBtn') {
+            btn.className = btn.className.replace(/text-gray-100|text-gray-900/g, 'text-white');
+            return;
+        }
+        btn.className = btn.className.replace(/bg-gray-800|bg-gray-200/g, isDark ? 'bg-gray-800' : 'bg-gray-200');
+        btn.className = btn.className.replace(/hover:bg-gray-700|hover:bg-gray-300/g, isDark ? 'hover:bg-gray-700' : 'hover:bg-gray-300');
+        btn.className = btn.className.replace(/text-gray-100|text-gray-900/g, isDark ? 'text-gray-100' : 'text-gray-900');
+    });
+
+    document.querySelectorAll('#shotsInput, #circuitCodeFormatSelect').forEach((input) => {
+        input.className = input.className.replace(/bg-gray-800|bg-white/g, config.input.bg);
+        input.className = input.className.replace(/border-gray-700|border-gray-300/g, config.input.border);
+        input.className = input.className.replace(/text-gray-100|text-gray-900/g, config.input.text);
+    });
+
+    document.querySelectorAll('.theme-editor-container').forEach((container) => {
+        container.className = container.className.replace(/bg-black|bg-white/g, config.codeEditor.bg);
+        container.className = container.className.replace(/border-gray-800|border-gray-300/g, config.codeEditor.border);
+    });
+
+    const table = document.getElementById('countsTable');
+    if (table) {
+        const thead = table.querySelector('thead');
+        if (thead) {
+            thead.className = thead.className.replace(/bg-gray-800|bg-gray-200/g, config.table.bg);
+        }
+        const tbody = table.querySelector('tbody');
+        if (tbody) {
+            tbody.className = tbody.className.replace(/text-gray-300|text-gray-700/g, config.table.text);
+        }
+    }
+
+    const canvas = document.getElementById('histogramCanvas');
+    if (canvas) {
+        canvas.className = canvas.className.replace(/bg-gray-900|bg-gray-100/g, isDark ? 'bg-gray-900' : 'bg-gray-100');
+    }
+
+    if (typeof window.circuitBuilderMonacoEditor !== 'undefined' && window.circuitBuilderMonacoEditor) {
+        updateMonacoEditorTheme(isDark);
+        const format = document.getElementById('circuitCodeFormatSelect')?.value || 'openqasm3';
+        const monacoTheme = format === 'quanta' ? 'quanta-theme' : 'openqasm-theme';
+        window.circuitBuilderMonacoEditor.updateOptions({ theme: monacoTheme });
+    }
+
+    if (typeof updateGatePaletteTheme === 'function') {
+        updateGatePaletteTheme(isDark);
+    }
+
+    ['sidebarToggleDesktop', 'sidebarToggleMobile'].forEach((id) => {
+        const btn = document.getElementById(id);
+        if (btn) {
+            btn.className = btn.className.replace(/hover:bg-gray-800|hover:bg-gray-200/g, isDark ? 'hover:bg-gray-800' : 'hover:bg-gray-200');
+        }
+    });
+}
+
 function applyTheme(theme) {
     const config = themeConfig[theme];
     const isDark = theme === 'dark';
+    const shellClass = document.body.classList.contains('app-shell') ? ' app-shell' : '';
     
     // Update body
-    document.body.className = `${config.body.bg} ${config.body.text} min-h-screen`;
+    document.body.className = `${config.body.bg} ${config.body.text} min-h-screen${shellClass}`;
+    document.body.classList.remove('light-mode', 'dark-mode');
+    document.body.classList.add(isDark ? 'dark-mode' : 'light-mode');
     document.body.setAttribute('data-theme', theme);
+    document.documentElement.setAttribute('data-theme', theme);
     
     // Update top bar
     const topBar = document.getElementById('topBar') || document.querySelector('div.bg-\\[\\#1a1a1a\\], div.bg-white');
@@ -2328,9 +2693,8 @@ function applyTheme(theme) {
         const navButtons = sidebar.querySelectorAll('.nav-item');
         navButtons.forEach(btn => {
             if (btn.classList.contains('active')) {
-                // Active nav button
                 btn.className = btn.className.replace(/bg-gray-800|bg-gray-200/g, isDark ? 'bg-gray-800' : 'bg-gray-200');
-                btn.className = btn.className.replace(/text-gray-900/g, 'text-gray-100'); // Keep green for active
+                btn.className = btn.className.replace(/text-gray-900|text-gray-100/g, isDark ? 'text-gray-100' : 'text-gray-900');
             } else {
                 // Regular nav buttons
                 btn.className = btn.className.replace(/hover:bg-gray-800|hover:bg-gray-200/g, isDark ? 'hover:bg-gray-800' : 'hover:bg-gray-200');
@@ -2364,11 +2728,13 @@ function applyTheme(theme) {
             });
         });
         
-        // Update saved toggle button
-        const savedToggleBtn = document.getElementById('savedToggle');
-        if (savedToggleBtn) {
-            savedToggleBtn.className = savedToggleBtn.className.replace(/hover:bg-gray-800|hover:bg-gray-200/g, isDark ? 'hover:bg-gray-800' : 'hover:bg-gray-200');
-        }
+        // Update sidebar section toggle buttons
+        ['savedToggle', 'functionsToggle', 'examplesToggle'].forEach(id => {
+            const btn = document.getElementById(id);
+            if (btn) {
+                btn.className = btn.className.replace(/hover:bg-gray-800|hover:bg-gray-200/g, isDark ? 'hover:bg-gray-800' : 'hover:bg-gray-200');
+            }
+        });
     }
     
     // Update code editor container
@@ -2491,12 +2857,22 @@ function applyTheme(theme) {
         themeBtn.className = themeBtn.className.replace(/text-gray-\d+/g, isDark ? 'text-gray-100' : 'text-gray-900');
     }
     
-    // Update inputs
-    const inputs = document.querySelectorAll('input');
-    inputs.forEach(input => {
-        input.className = input.className.replace(/bg-gray-800|bg-white/g, config.input.bg);
-        input.className = input.className.replace(/border-gray-700|border-gray-300/g, config.input.border);
-        input.className = input.className.replace(/text-gray-100|text-gray-900/g, config.input.text);
+    // Update inputs and selects
+    const formControls = document.querySelectorAll('input, select');
+    formControls.forEach(control => {
+        control.className = control.className.replace(/bg-gray-800|bg-white/g, config.input.bg);
+        control.className = control.className.replace(/border-gray-700|border-gray-300/g, config.input.border);
+        control.className = control.className.replace(/text-gray-100|text-gray-900|text-gray-200/g, config.input.text);
+    });
+
+    document.querySelectorAll('.theme-editor-container').forEach((container) => {
+        container.className = container.className.replace(/bg-black|bg-white/g, config.codeEditor.bg);
+        container.className = container.className.replace(/border-gray-800|border-gray-300/g, config.codeEditor.border);
+    });
+
+    document.querySelectorAll('label span.text-sm, .text-sm.text-gray-400').forEach((el) => {
+        if (el.closest('#sidebar')) return;
+        el.className = el.className.replace(/text-gray-400|text-gray-600/g, isDark ? 'text-gray-400' : 'text-gray-600');
     });
     
     // Update status indicators and info text
@@ -2623,6 +2999,10 @@ function applyTheme(theme) {
             `;
         }
     }
+
+    applyHomePageTheme(theme);
+    applyCircuitPageTheme(theme);
+    syncAppShellLayout();
 }
 
 function toggleTheme() {

@@ -1,0 +1,40 @@
+// ═══════════════════════════════════════════════════════════════════
+//  QUANTUM PROGRAMming IDE — START HERE (Quanta showcase)
+// ═══════════════════════════════════════════════════════════════════
+//
+//  This file is a map of IDE features. Open any example from the
+//  sidebar Examples gallery, or use the Feature Tour on the Home page.
+//
+//  QUICK ACTIONS (while this file is open):
+//    Ctrl+Enter        → Run simulation (Simulation Results tab)
+//    Ctrl+Shift+Enter  → Run debug prints (Debug Output tab)
+//
+//  FEATURE → EXAMPLE FILE
+//  ─────────────────────────────────────────────────────────────────
+//  Bell + custom gate     → Bell Quanta.qta
+//  Debug visualizers      → debug_formats.qta  (then Debug tab)
+//  Bloch sphere (pin!)    → bloch_sphere.qta   (then Debug tab)
+//  /// docs + IntelliSense→ doc_gate.qta       (hover gate/func names)
+//  Structured QASM        → structured_qasm.qta (enable Structured QASM)
+//  ctrl / inv modifiers   → ctrl_inv_demo.qta
+//  QInt arithmetic        → qint_arithmetic.qta
+//  Grover / QFT           → grover.qta, qft.qta
+//  Fidelity metric        → fidelity_demo.qta
+//
+//  OpenQASM examples: bell.qasm, teleportation.qasm, openqasm3_features.qasm
+//  Circuit Builder:     /circuit — Bell / GHZ / QFT templates in palette
+//
+// ═══════════════════════════════════════════════════════════════════
+
+// input bits and qubits
+qbit q
+bit c
+
+// gate
+H(q)
+
+// Measure
+Measure(q, c)
+
+// print for debug
+Print(f"Welcome — try Ctrl+Shift+Enter for debug output on: {q:bloch}")

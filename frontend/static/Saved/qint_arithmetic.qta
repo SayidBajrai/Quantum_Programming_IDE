@@ -1,5 +1,9 @@
-// Quantum integer arithmetic
-qint[3] a = 1
-qint[3] b = 3
-qint[3] c = a + b
-print(f"{a} + {b} = {c}")
+// Quantum integer arithmetic — QAdd high-level gate
+qint(3) a = 1
+qint(3) b = 3
+qint(3) result
+
+QAdd(a, b, result)
+Print(f"a={a:prob}")
+Print(f"b={b:prob}")
+Print(f"a+b={result:prob}")

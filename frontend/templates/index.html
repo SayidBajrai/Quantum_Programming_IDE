@@ -11,7 +11,7 @@
     <script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/vs/loader.js"></script>
 </head>
 
-<body class="bg-[#0f0f0f] text-gray-100 min-h-screen" data-theme="dark">
+<body class="bg-[#0f0f0f] text-gray-100 app-shell" data-theme="dark">
     <!-- Top Bar -->
     <div id="topBar" class="bg-[#1a1a1a] border-b border-gray-800 px-2 py-2">
         <div class="flex items-center justify-between">
@@ -53,7 +53,7 @@
         </div>
     </div>
 
-    <div class="grid grid-cols-[auto_1fr] h-[calc(100vh-53px)]">
+    <div id="appLayout">
         <!-- Sidebar -->
         <div id="sidebar"
             class="w-64 bg-[#1a1a1a] border-r border-gray-800 p-4 transition-all duration-300 overflow-hidden">
@@ -90,7 +90,7 @@
         </div>
 
         <!-- Main Content -->
-        <div class="flex flex-col min-w-0 h-full">
+        <div class="app-main flex flex-col min-w-0 h-full">
             <!-- Code Editor and Right Panel -->
             <div id="editorSection" class="flex gap-0 flex-1 min-h-0">
                 <!-- Code Editor Section -->

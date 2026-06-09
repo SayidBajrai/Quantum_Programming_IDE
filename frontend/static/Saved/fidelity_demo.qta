@@ -1,0 +1,6 @@
+// Fidelity metric — compare two single-qubit registers
+qbit state
+qbit ref
+
+H(state)
+Print(Fidelity(state, ref))
